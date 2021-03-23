@@ -18,7 +18,7 @@ class blendCamera:
 
         bpy.ops.object.camera_add()
         cam = bpy.context.active_object
-        cam.name = camera
+        cam.name = 'camera'
         bpy.data.cameras[cam.name].sensor_width = blendCamera.sensor_width
 
         if blendCamera.structured_light:
@@ -28,9 +28,9 @@ class blendCamera:
             print("Simple camera is activated")
 
 
-if __name__ = '__main__':
+if __name__ == '__main__':
 
     blendCamera.structured_light = True
 
 
-    blendCamera.import_camera(False)
+    blendCamera.import_camera()
