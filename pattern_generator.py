@@ -7,4 +7,4 @@ class PatternGenerator:
     def generate_fringe_patterns():
 
     
-    if __name__ == '__main__':
+if __name__ == '__main__':
