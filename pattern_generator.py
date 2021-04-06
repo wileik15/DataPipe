@@ -2,10 +2,10 @@ import cv2
 import numpy as np
 
 
-class PatternGenerator:
+class patternGenerator:
 
-    
-    def generate_patterns(width, height, periods):
+    @staticmethod
+    def generate_fringe_patterns(width, height, periods):
         """
         Generates three monochrome fringe patterns for structured light scanner
 

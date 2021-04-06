@@ -2,7 +2,7 @@ import bpy
 
 
 
-class BlendCamera:
+class blendCamera:
 
     structured_light = True
     sensor_width = 36
