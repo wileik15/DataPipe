@@ -1,8 +1,7 @@
 import bpy
-import sys
 import subprocess
 
-class versionControll:
+class VersionControll:
 
     @staticmethod
     def blenderVersionCheck():
@@ -17,7 +16,7 @@ class versionControll:
 
 
 
-class packageControll:
+class PackageControll:
 
     @staticmethod
     def installDependencies(package_list):
@@ -41,4 +40,4 @@ class packageControll:
 
 if __name__ == '__main__':
 
-    packageControll.installDependencies(["scipy"])
+    PackageControll.installDependencies(["scipy"])

@@ -1,27 +1,51 @@
 import bpy
 
 
-class blendProjector:
+class BlendProjector:
+
+    shifts = 3
 
     @staticmethod
     def add_collections_and_viewlayers():
-
+        #Set parent collection to be scene master collection
         parent = bpy.context.scene.collection
 
-        for shift in range(1,4):
-            phase1_name = "p8s{}".format(shift)
-            phase2_name = "p7s{}".format(shift)
+        #Loop number of phase shifts in structured light algorithm
+        for shift in range(0,BlendProjector.shifts):
+            #Pattern name for both wave lengths at current shift
+            pattern1_name = "p1s{}".format(shift+1)
+            pattern2_name = "p2s{}".format(shift+1)
             
-            bpy.context.scene.view_layers.new(name=phase1_name)
-            bpy.context.scene.view_layers.new(name=phase2_name)
+            #Create viewlayers for both wave lengths at current shift
+            bpy.context.scene.view_layers.new(name=pattern1_name)
+            bpy.context.scene.view_layers.new(name=pattern2_name)
             
-            col1 = bpy.data.collections.new(name=phase1_name)
-            col2 = bpy.data.collections.new(name=phase2_name)
+            #Create collections for both wave lengths at current shift
+            col1 = bpy.data.collections.new(name=pattern1_name)
+            col2 = bpy.data.collections.new(name=pattern2_name)
 
+            #Make collections children of master collection/scene collection
             parent.children.link(col1)
             parent.children.link(col2)
+
+    @staticmethod
+    def add_light_source():
+
+        bpy.ops.object.light_add(type='SPOT',)
+
+
+    @staticmethod
+    def print_collection_names():
+
+        collections = bpy.data.collections
+
+        for collection in collections:
+
+            print("\n-------------------\nCollection\nName: {}\nChildren: {}\nObjects in: {}\n-------------------".format(collection.name, (collection.children), collection.objects))
 
 
 if __name__ == '__main__':
 
-    blendProjector.add_collections_and_viewlayers()
+    BlendProjector.add_collections_and_viewlayers()
+
+    BlendProjector.print_collection_names()
