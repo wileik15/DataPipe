@@ -38,6 +38,15 @@ class PackageControll:
             subprocess.check_call([py_exec, '-m', 'pip', 'install','{}'.format(package_name)])
 
 
+class SpatialTransforms:
+
+    @staticmethod
+    def quat2rot(quat):
+
+        
+
+
+
 if __name__ == '__main__':
 
     PackageControll.installDependencies(["scipy"])

@@ -2,11 +2,18 @@ import bpy
 
 
 class BlendProjector:
+    """
+    Projector class for Blender
+    """
 
     shifts = 3
 
     @staticmethod
     def add_collections_and_viewlayers():
+        """
+        sdads
+        """
+
         #Set parent collection to be scene master collection
         parent = bpy.context.scene.collection
 
@@ -31,7 +38,19 @@ class BlendProjector:
     @staticmethod
     def add_light_source():
 
-        bpy.ops.object.light_add(type='SPOT',)
+        bpy.ops.object.light_add(type='SPOT')
+        spot = bpy.context.active_object
+
+        cam = bpy.data.objects['cam']
+        spot.parent = cam
+        spot.parent_type = 'OBJECT'
+
+        spot.location = (-0.15, 0, 0)
+        spot.rotation_
+        spot.rotation_euler = (0, 90, 0)
+        
+
+        print(cam.name)
 
 
     @staticmethod
@@ -49,3 +68,9 @@ if __name__ == '__main__':
     BlendProjector.add_collections_and_viewlayers()
 
     BlendProjector.print_collection_names()
+
+    BlendProjector.add_light_source()
+'''
+x_scale = focal_length/sensorwidth_x
+y_scale = (focal_length/sensorwidth_x)*(res_y/res_x)
+'''
