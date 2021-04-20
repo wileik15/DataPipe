@@ -1,4 +1,5 @@
 import bpy
+from numpy import pi
 
 
 class BlendProjector:
@@ -37,20 +38,16 @@ class BlendProjector:
 
     @staticmethod
     def add_light_source():
-
+        #Add spotlight
         bpy.ops.object.light_add(type='SPOT')
         spot = bpy.context.active_object
 
+        #Lock spotlight pose relative to camera pose
         cam = bpy.data.objects['cam']
         spot.parent = cam
         spot.parent_type = 'OBJECT'
-
         spot.location = (-0.15, 0, 0)
-        spot.rotation_
-        spot.rotation_euler = (0, 90, 0)
-        
-
-        print(cam.name)
+        spot.rotation_euler = (0, 8.5, 0)
 
 
     @staticmethod
