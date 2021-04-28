@@ -75,15 +75,13 @@ class SpatialTransforms:
         quat = [q[3], q[0], q[1], q[2]] #Saves quaternion in Blender representation
         return quat
 
-'''
-
     @staticmethod
     def pose_to_tranformation_matrix(quaternions, location):
         """
         Changes Blenders quaternion representation and location
         to transformation matrix representation
         """
-        R = poseUtility.quat_to_rot(quaternions)
+        R = SpatialTransforms.quat2rot(quat=quaternions)
         t = location
 
         T = np.array([[R[0,0], R[0,1], R[0,2], t[0]],
@@ -107,25 +105,18 @@ class SpatialTransforms:
     def cam2obj_transform(obj, cam_pos_matrix):
         obj_translation = obj.location #Get object location vector
         obj_quaternions = obj.rotation_quaternion #Get object rotation on quaternion
-        obj_trans_quaternions = poseUtility.rot_to_quat(poseUtility.quat_to_rot(obj_quaternions))
+        obj_trans_quaternions = SpatialTransforms.rot2quat(SpatialTransforms.quat2rot(obj_quaternions))
 
         cam_translation = cam_pos_matrix[0:3,3] #Get camera location vector
-        cam_quaternions = poseUtility.rot_to_quat(cam_pos_matrix[0:3,0:3]) #Get camera rotation on quaternion
+        cam_quaternions = SpatialTransforms.rot2quat(cam_pos_matrix[0:3,0:3]) #Get camera rotation on quaternion
 
-        T_so, R_so, t_so = poseUtility.pose_to_tranformation_matrix(obj_quaternions, obj_translation) #Object transformation matrix in world coordinates
-        T_sc, R_sc, t_sc = poseUtility.pose_to_tranformation_matrix(cam_quaternions, cam_translation) #Camera transformation matrix in world coordinates
+        T_so, R_so, t_so = SpatialTransforms.pose_to_tranformation_matrix(obj_quaternions, obj_translation) #Object transformation matrix in world coordinates
+        T_sc, R_sc, t_sc = SpatialTransforms.pose_to_tranformation_matrix(cam_quaternions, cam_translation) #Camera transformation matrix in world coordinates
 
-        T_cs = poseUtility.transform_inverse(T_sc) #World coordinate system in camera coordinate system
+        T_cs = SpatialTransforms.transform_inverse(T_sc) #World coordinate system in camera coordinate system
 
         T_co = np.matmul(T_cs,T_so) #Object transform from camera coordinate system
         R_co = T_co[0:3,0:3] #Rotation
         t_co = T_co[0:3,3] #Translation
 
         return T_co, R_co, t_co
-'''
-
-
-
-if __name__ == '__main__':
-
-    PackageControll.installDependencies(["scipy"])
