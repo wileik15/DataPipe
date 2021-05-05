@@ -1,24 +1,15 @@
-print("########## script start ##########")
-
-import sys
-import os
 import random
-#sys.path.append(os.path.expanduser('~Users/William/Documents/masters_thesis/DataPipe/'))
-print(os.getcwd())
+import os
 
 import bpy
-import time
 import numpy as np
 import utility_fuctions
 
-
-#############################################
-############## Projector Class ##############
-#############################################
+print("########## Projector start ##########")
 
 class Projector:
     """
-    Projector class for Blender
+    Projector class for Blender pipeline
     """
 
     def __init__(self, blend_camera: object, config: dict):
@@ -49,6 +40,9 @@ class Projector:
         
 
     def generate_pattern_names(self):
+        """
+        Generate a list of pattern names to be used in creation of viwlayers
+        """
 
         names = []
 
@@ -64,7 +58,7 @@ class Projector:
     
     def create_collections_and_viewlayers(self):
         """
-        sdads
+        Creates collections and viewlayers, corresponding to the generated projected patterns
         """
         
         #Set parent collection to be scene master collection
@@ -108,6 +102,9 @@ class Projector:
         
     
     def connect_collections_and_viewlayers(self):
+        """
+        Connect collections with their associated view layers, to enable hiding and unhiding in other view layers.
+        """
 
         for layer in bpy.context.scene.view_layers: #Loop layers
             native_lighting_col = bpy.context.scene.view_layers[layer.name].layer_collection.children['native_lights']
@@ -134,7 +131,7 @@ class Projector:
 
     def import_light_sources(self):
         """
-
+        Creating projector light sources in blender, and creating node tree for each pattern
         """
 
         print('################# importing light sources #################')
@@ -226,79 +223,3 @@ class Projector:
             light_out_node.location = (1400, 0)
             light_out_node.name = "light_output_{}".format(light.name)
 
-
-##########################################
-############## Camera Class ##############
-##########################################
-
-
-
-
-if __name__ == '__main__':
-
-    start_time = time.time()
-
-    config_dict = {"camera": {"wrld2cam_pose_list": [np.array([[0.7071068, -0.7071068,  0.0000000, 0],
-                                                [0.0000000, -0.0000000, -1.0000000, 0],
-                                                [0.7071068,  0.7071068,  0.0000000, 0.5],
-                                                [0, 0, 0, 1]])],
-                              "is_structured_light": True
-                             },
-                  "projector": {"proj2cam_pose": np.array([[0.9890159,  0.0000000, -0.1478094, -0.15],
-                                                            [0.0000000,  1.0000000,  0.0000000, 0],
-                                                            [0.1478094,  0.0000000,  0.9890159, 0],
-                                                            [0, 0, 0, 1]])
-                                 
-                                }
-                  }
-
-    #BlendScene.set_up_scene()
-    cam = BlendCamera(camera_name= 'Cam', config=config_dict)
-
-    end_time = time.time()
-
-    print("\n#############################\n# Total runtime is: {:.4f}s #\n#############################\n".format(end_time - start_time))
-    
-print("######### SCRIPT ENDED #########")
-
-
-###########################################
-################ TEMPORARY ################
-###########################################
-
-
-class VersionControll:
-
-    @staticmethod
-    def blenderVersionCheck():
-        """
-        Verifies that Blender version 2.80 or later is installed
-        """
-
-        version = (bpy.app.version_string).split('.')
-
-        if not (int(version[1]) >= 90):
-            raise Exception("Blender version 2.80 or newer required.\n- Current version is Blender {}.{}.{}".format(version[0],version[1],version[2]))
-
-
-
-class PackageControll:
-
-    @staticmethod
-    def installDependencies(package_list):
-        """
-        installing package dependencies to Blenders bundled python
-        """
-
-        #Path to python executable
-        py_exec = str(bpy.app.binary_path_python)
-
-        #Ensure that pip is installed
-        subprocess.call([py_exec, '-m', 'ensurepip', '--user'])
-
-        #Install latest version of pip
-        subprocess.call([py_exec, '-m', 'pip', 'install', '--upgrade', 'pip'])
-
-        #Loop package list to install all of them
-        for package_name in package_list:
-            subprocess.check_call([py_exec, '-m', 'pip', 'install','{}'.format(package_name)])

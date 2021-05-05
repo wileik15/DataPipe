@@ -1,6 +1,3 @@
-import os
-import json
-import sys
 import bpy
 import subprocess
 import numpy as np
