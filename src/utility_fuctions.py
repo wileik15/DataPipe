@@ -6,18 +6,27 @@ import subprocess
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-class VersionControll:
+class PathUtility:
 
     @staticmethod
-    def blenderVersionCheck():
+    def get_addon_path():
         """
-        Verifies that Blender version 2.80 or later is installed
+        Returns path to addon folder.
         """
+        resource_path = bpy.utils.resource_path(type='USER')
+        addon_path = "{}/scripts/addons/DataPipe".format(resource_path)
+        print("addon_path:\n{}".format(addon_path))
+        return addon_path
 
-        version = (bpy.app.version_string).split('.')
-
-        if not (int(version[1]) >= 90):
-            raise Exception("Blender version 2.80 or newer required.\n- Current version is Blender {}.{}.{}".format(version[0],version[1],version[2]))
+    @staticmethod
+    def get_patterns_path():
+        """
+        Returns path to patterns folder.
+        """
+        resource_path = bpy.utils.resource_path(type='USER')
+        pattern_path = "{}/scripts/addons/DataPipe/utility/SL_patterns/".format(resource_path)
+        print("Patterns path:\n{}".format(pattern_path))
+        return pattern_path
 
 
 
@@ -44,79 +53,98 @@ class PackageControll:
 
 
 
-class SpatialTransforms:
+def quat2rot(quat):
+    """
+    Converts blender quaternion representation to rotation matrix
 
-    @staticmethod
-    def quat2rot(quat):
-        """
-        Converts blender quaternion representation to rotation matrix
+    :param: quat
+    :type quat: array
+    """
+    #Converts from blender quaternion representation
+    q = [quat[1], quat[2], quat[3], quat[0]]
 
-        :param: quat
-        :type quat: array
-        """
-        #Converts from blender quaternion representation
-        q = [quat[1], quat[2], quat[3], quat[0]]
+    quat = Rotation.from_quat(q) #Stores as a rotation
+    R = quat.as_matrix() #Rotation matrix
+    return R
 
-        quat = Rotation.from_quat(q) #Stores as a rotation
-        R = quat.as_matrix() #Rotation matrix
-        return R
+def xyz2rot(xyz):
 
-    @staticmethod
-    def rot2quat(rot):
-        """
-        Converts a rotation matrix to  blender quaternion representation
+    xyz_rot = Rotation.from_euler(seq='XYZ',angles=xyz)
+    R = xyz_rot.as_matrix()
+    return R
 
-        :param: rot
-        :type rot: array
-        """
-        R = Rotation.from_matrix(rot) #Stores as a rotation
-        q = R.as_quat() #Quaternions
+def rot2quat(rot):
+    """
+    Converts a rotation matrix to  blender quaternion representation
 
-        quat = [q[3], q[0], q[1], q[2]] #Saves quaternion in Blender representation
-        return quat
+    :param: rot
+    :type rot: array
+    """
+    R = Rotation.from_matrix(rot) #Stores as a rotation
+    q = R.as_quat() #Quaternions
 
-    @staticmethod
-    def pose_to_tranformation_matrix(quaternions, location):
-        """
-        Changes Blenders quaternion representation and location
-        to transformation matrix representation
-        """
-        R = SpatialTransforms.quat2rot(quat=quaternions)
-        t = location
+    quat = [q[3], q[0], q[1], q[2]] #Saves quaternion in Blender representation
+    return quat
 
-        T = np.array([[R[0,0], R[0,1], R[0,2], t[0]],
-                      [R[1,0], R[1,1], R[1,2], t[1]],
-                      [R[2,0], R[2,1], R[2,2], t[2]],
-                      [0,      0,      0,      1   ]])
-        return T, R, t
 
-    @staticmethod
-    def transform_inverse(matrix):
-        R = matrix[0:3, 0:3]
-        t = matrix[0:3, 3]
 
-        T = np.zeros_like(matrix)
-        T[0:3, 0:3] = np.transpose(R)
-        T[0:3, 3] = - np.transpose(R)@t
-        T[3,3] = 1
-        return T
-    
-    @staticmethod
-    def cam2obj_transform(obj, cam_pos_matrix):
-        obj_translation = obj.location #Get object location vector
-        obj_quaternions = obj.rotation_quaternion #Get object rotation on quaternion
-        obj_trans_quaternions = SpatialTransforms.rot2quat(SpatialTransforms.quat2rot(obj_quaternions))
+def pose_to_tranformation_matrix(rotation, location):
+    """
+    Changes Blenders quaternion representation and location
+    to transformation matrix representation
+    """
 
-        cam_translation = cam_pos_matrix[0:3,3] #Get camera location vector
-        cam_quaternions = SpatialTransforms.rot2quat(cam_pos_matrix[0:3,0:3]) #Get camera rotation on quaternion
+    if len(rotation) == 4:
+        R = quat2rot(quat=rotation)
+    else:
+        R = xyz2rot(xyz= rotation)
 
-        T_so, R_so, t_so = SpatialTransforms.pose_to_tranformation_matrix(obj_quaternions, obj_translation) #Object transformation matrix in world coordinates
-        T_sc, R_sc, t_sc = SpatialTransforms.pose_to_tranformation_matrix(cam_quaternions, cam_translation) #Camera transformation matrix in world coordinates
+    t = location
 
-        T_cs = SpatialTransforms.transform_inverse(T_sc) #World coordinate system in camera coordinate system
+    T = np.array([[R[0,0], R[0,1], R[0,2], t[0]],
+                    [R[1,0], R[1,1], R[1,2], t[1]],
+                    [R[2,0], R[2,1], R[2,2], t[2]],
+                    [0,      0,      0,      1   ]])
+    return T, R, t
 
-        T_co = np.matmul(T_cs,T_so) #Object transform from camera coordinate system
-        R_co = T_co[0:3,0:3] #Rotation
-        t_co = T_co[0:3,3] #Translation
 
-        return T_co, R_co, t_co
+def transformation_matrix_to_quat_and_translation(matrix):
+    """
+    Converts pose from transformation matrix format to quaternions and translation
+
+    return: [quaternions] and [x,y,z]
+    """
+    quat = rot2quat(rot=matrix[0:3,0:3])
+    trans = [matrix[0,3], matrix[1,3], matrix[2,3]]
+    return quat, trans
+
+
+def transform_inverse(matrix):
+    R = matrix[0:3, 0:3]
+    t = matrix[0:3, 3]
+
+    T = np.zeros_like(matrix)
+    T[0:3, 0:3] = np.transpose(R)
+    T[0:3, 3] = - np.transpose(R)@t
+    T[3,3] = 1
+    return T
+
+
+def cam2obj_transform(blender_object, cam_pos_matrix):
+    obj_translation = blender_object.location #Get object location vector
+    obj_quaternions = blender_object.rotation_quaternion #Get object rotation on quaternion
+    obj_trans_quaternions = rot2quat(quat2rot(obj_quaternions))
+
+    cam_translation = cam_pos_matrix[0:3,3] #Get camera location vector
+    cam_quaternions = rot2quat(cam_pos_matrix[0:3,0:3]) #Get camera rotation on quaternion
+
+    T_so, R_so, t_so = pose_to_tranformation_matrix(obj_quaternions, obj_translation) #Object transformation matrix in world coordinates
+    T_sc, R_sc, t_sc = pose_to_tranformation_matrix(cam_quaternions, cam_translation) #Camera transformation matrix in world coordinates
+
+    T_cs = transform_inverse(T_sc) #World coordinate system in camera coordinate system
+
+    T_co = np.matmul(T_cs,T_so) #Object transform from camera coordinate system
+    R_co = T_co[0:3,0:3] #Rotation
+    t_co = T_co[0:3,3] #Translation
+
+    return T_co, R_co, t_co

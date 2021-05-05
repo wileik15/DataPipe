@@ -1,9 +1,10 @@
 
 
-a = ['one', 'two', 'three', 'four']
+objects = [{'object': "Object1", 'Scale': 0.01}, {'object': "Object2", 'Scale': 0.1}]
 
-b = ['one', 'two']
 
-c = list(set(a)-set(b))
+print(objects[0])
+print(objects[0]['Scale'])
 
-print(c)
+print(objects[1])
+print(objects[1]['Scale'])

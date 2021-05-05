@@ -1,36 +1,68 @@
 import bpy
+from projector import Projector
 
 
+class BlendCamera:
 
-class blendCamera:
+    def __init__(self, camera_name: str, config: dict):
 
-    structured_light = True
-    sensor_width = 36
+        self.camera_config = config['camera']
+
+        self.name = camera_name
+        self.is_structured_light = self.camera_config["is_structured_light"]
+
+        self.pose_list = self.camera_config["wrld2cam_pose_list"]
+
+        self.blend_cam_obj = self.import_camera()
+
+        if self.is_structured_light:
+            self.projector = Projector(self, config=config)
+        
+        #Move to first pose
+        self.move()
+        
 
 
-    @classmethod
-    def import_camera(cls):
+    def import_camera(self):
         """
-        Method for importing camera object in Blender scene
-
-        :param structured_light: Determine if camera object is structured_light or structured light camera
-        :type structured_light: Bool
+        Imports camera into blender scene.
         """
+        camera = bpy.data.cameras.new(name=self.name)
+        camera_obj = bpy.data.objects.new(name=self.name, object_data=camera)
+        
+        parent_col = bpy.context.scene.collection
+        parent_col.objects.link(camera_obj)
 
-        bpy.ops.object.camera_add()
-        cam = bpy.context.active_object
-        cam.name = 'cam'
-        bpy.data.cameras[cam.name].sensor_width = blendCamera.sensor_width
-
-        if blendCamera.structured_light:
-            print("Structured light is activated")
-
-        else:
-            print("Simple camera is activated")
+        return camera_obj
+        
 
 
-if __name__ == '__main__':
+    def get_random_pose_from_list(self):
+        """
+        Selects a random pose from camera pose list.
 
-    blendCamera.structured_light = True
+        returns random pose.
+        """
+        
+        poses = self.pose_list
 
-    blendCamera.import_camera()
+        #Pick random index of pose list
+        index = random.randint(a=0, b=len(poses)-1)
+        print("Camera random pos: {}".format(poses[index]))
+
+        return poses[index]
+    
+    def move(self):
+        """
+        moves camera object to random position.
+        """
+        blend_obj = self.blend_cam_obj
+        #Sample random pose from input list
+        rand_pose = self.get_random_pose_from_list()
+        rot_quat, transl = transformation_matrix_to_quat_and_translation(rand_pose)
+        print("Blender object: {}".format(blend_obj.name))
+        print("Rotation = {}\nTranslation = {}".format(rot_quat, transl))
+        #Set blender camera objects position
+        blend_obj.rotation_quaternion = rot_quat
+        blend_obj.location = transl
+
