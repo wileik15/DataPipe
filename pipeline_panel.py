@@ -1,8 +1,34 @@
+from os import name
 import bpy
 import numpy as np
 from .src.config_module import input_storage
 
 print("############ pipeline_panel Start ############")
+
+class DATAPIPE_PT_Start_panel(bpy.types.Panel):
+    bl_idname = 'Start_PT_Panel'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'DataPipe'
+    bl_label = "Initialize pipeline"
+
+    def draw(self, context):
+        layout = self.layout
+
+        row = layout.row()
+        row.scale_y = 2
+        row.operator('datapipe.set_scene_parameters', icon='PLAY')
+
+        box = layout.box()
+        box.label(text='Load pipeline input from pickle file')
+
+        row = box.row()
+        col = row.column()
+        col.prop(context.scene, 'load_pipeline_input_path')
+        col = row.column()
+        col.scale_x = 0.7
+        col.operator('datapipe.load_input_file', icon='IMPORT')
+
 
 class DATAPIPE_PT_scenes_panel(bpy.types.Panel):
     bl_idname = 'Scenes_PT_Panel'
@@ -14,17 +40,41 @@ class DATAPIPE_PT_scenes_panel(bpy.types.Panel):
     def draw(self, context):
 
         layout = self.layout
-        
-        row = layout.row()
-        row.operator('datapipe.set_scene_parameters', icon='PLAY')
+        box = layout.box()
+        row = box.split(factor=0.6)
+        left_col = row.column()
+        right_col = row.column()
+
+        #Total number of renders input
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Total number of renders')
+        row = right_col.row()
+        row.prop(context.scene, 'num_renders')
+
+        #Max renders input
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Renders per scene Max')
+        row = right_col.row()
+        row.prop(context.scene, 'max_renders_per_scene')
+
+        #Min renders input
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Min')
+        row = right_col.row()
+        row.prop(context.scene, 'min_renders_per_scene')
 
         row = layout.row()
-        row.prop(context.scene, 'num_renders')
-        
-        row = layout.row()
-        row.prop(context.scene, 'max_renders_per_scene')
-        row = layout.row()
-        row.prop(context.scene, 'min_renders_per_scene')
+
+        #Dropzone inputs
+        box = layout.box()
+        row = box.row()
+        row.operator('datapipe.import_dropzone_object', icon='PIVOT_BOUNDBOX')
+        row = box.row()
+        row.label(text='Move the box to desired location')
+
         
 
 
@@ -57,43 +107,40 @@ class DATAPIPE_PT_camera_panel(bpy.types.Panel):
 
         #Camera intrinsics
         row = layout.row()
-        row.label(text='Intrinsic parameters', icon='CAMERA_DATA')
+        row.label(text='Camera intrinsics', icon='CAMERA_DATA')
+        row = layout.split(factor=0.5)
+        
+        left_col = row.column()
+        left_col.alignment = 'RIGHT'
+        right_col = row.column()
 
-        row = layout.row()
+        #Focal length input
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Focal length')
+        row = right_col.row()
         row.prop(context.scene, 'camera_focal_length')
 
-        row = layout.row()
+        #Sensor width input
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Sensor width')
+        row = right_col.row()
         row.prop(context.scene, 'camera_sensor_width')
-        
-        col = layout.column(align=True)
-        
-        row = col.row()
+
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Resolution height')
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='width')
+
+        row = right_col.row()
         row.prop(context.scene, 'camera_resolution_height')
 
-        row = col.row()
+        row = right_col.row()
         row.prop(context.scene, 'camera_resolution_width')
-
-
-        #Camera extrinsics
-        row = layout.row()
-        row.label(text="Location (X, Y, Z)", icon='EMPTY_AXIS')
-
-        row = layout.row()
-        row.prop(context.scene, 'camera_loc_vec')
-
-        row = layout.row()
-        row.label(text='Rotation', icon='SPHERE')
-
-        row = layout.row()
-        row.prop(context.scene, 'camera_rot_enum')
-
-        row = layout.row()
-        if context.scene.camera_rot_enum == 'xyz':
-            row.prop(context.scene, 'camera_rot_xyz')
-        else:
-            row.prop(context.scene, 'camera_rot_quat')
-
-
+        
         #Structured light
         row = layout.row()
         row.prop(context.scene, 'is_structured_light')
@@ -101,43 +148,61 @@ class DATAPIPE_PT_camera_panel(bpy.types.Panel):
         if context.scene.is_structured_light:
 
             #Projector intrinsics
-            row = layout.row()
-            row.label(text='Projector intrinsics', icon='LIGHT')
 
-            row = layout.row()
+            box = layout.box()
+            row = box.row()
+            row.label(text='Projector intrinsics', icon='LIGHT')
+            row = box.split(factor=0.5)
+
+            left_col = row.column()
+            right_col = row.column()
+
+            row = left_col.row()
+            row.alignment = 'RIGHT'
+            row.label(text='Focal length')
+            row = right_col.row()
             row.prop(context.scene, 'projector_focal_length')
 
-            row = layout.row()
+            row = left_col.row()
+            row.alignment = 'RIGHT'
+            row.label(text='Sensor width')
+            row = right_col.row()
             row.prop(context.scene, 'projector_sensor_width')
             
-            col = layout.column(align=True)
-            
-            row = col.row()
+            row = left_col.row()
+            row.alignment = 'RIGHT'
+            row.label(text='Resolution height')
+            right_col.column(align=True)
+            row = right_col.row()
             row.prop(context.scene, 'projector_resolution_height')
             
-            row = col.row()
+            row = left_col.row()
+            row.alignment = 'RIGHT'
+            row.label(text='width')
+            row = right_col.row()
             row.prop(context.scene, 'projector_resolution_width')
 
 
             #Projector extrinsics
-            row = layout.row()
-            row.label(text="Location (X, Y, Z)", icon='EMPTY_AXIS')
+            box = layout.box()
+            row = box.row()
+            row.label(text="Location (x, y, z) relative to camera", icon='EMPTY_AXIS')
 
-            row = layout.row()
+            row = box.row()
             row.prop(context.scene, 'projector_loc_vec')
 
-            row = layout.row()
-            row.label(text='Rotation', icon='SPHERE')
+            row = box.row()
+            row.label(text='Rotation relative to camera', icon='SPHERE')
 
-            row = layout.row()
+            row = box.row()
             row.prop(context.scene, 'projector_rot_enum')
 
-            row = layout.row()
+            row = box.row()
             if context.scene.projector_rot_enum == 'xyz':
                 row.prop(context.scene, 'projector_rot_xyz')
             else:
                 row.prop(context.scene, 'projector_rot_quat')
-        
+
         row = layout.row()
         row.label(text='')
 
@@ -145,6 +210,7 @@ class DATAPIPE_PT_camera_panel(bpy.types.Panel):
         row.operator('datapipe.preview_camera_pose', icon='WORKSPACE')
 
         row = layout.row()
+        row.label(text='Move camera to desired pose')
         row = layout.row()
         row.scale_y = 2.0
         row.operator('datapipe.append_camera_pose', icon='FILE_NEW')
@@ -165,19 +231,27 @@ class DATAPIPE_PT_run_panel(bpy.types.Panel):
     def draw(self, context):
 
         layout = self.layout
+        box = layout.box()
+
+        row = box.row()
+        row.label(text="Save pipeline input to file")
+
+        row = box.row()
+        col = row.column()
+        col.prop(context.scene, 'save_pipeline_input_path')
+
+        col = row.column()
+        col.scale_x = 0.7
+        col.operator('datapipe.save_pipeline_info', icon='EXPORT')
 
         row = layout.row()
-        row.label(text="Enter path to save output:")
-
-        row = layout.row()
-        row.prop(context.scene, 'output_path')
-
         row = layout.row()
         row.operator('datapipe.run_pipeline', icon='PLAY')
 
         
 
 classes = [
+           DATAPIPE_PT_Start_panel,
            DATAPIPE_PT_scenes_panel,
            DATAPIPE_PT_objects_panel,
            DATAPIPE_PT_camera_panel,
@@ -185,19 +259,27 @@ classes = [
           ]
 
 def register():
+    ##############################################
+    ####### INITIALIZE PIPELINE PROPERTIES #######
+    ##############################################
+    bpy.types.Scene.load_pipeline_input_path = bpy.props.StringProperty(
+        name='',
+        subtype='FILE_PATH',
+        description='Filepath to pickle file containing pipeline inputs')
+
     ################################
     ####### SCENE PROPERTIES #######
     ################################
     bpy.types.Scene.num_renders = bpy.props.IntProperty(
-        name='Number of renders', 
+        name='', 
         default=1,
         description='Number of images to render')
     bpy.types.Scene.max_renders_per_scene = bpy.props.IntProperty(
-        name='Max number of renders per scene',
+        name='',
         default=1,
         description='The max number of camera poses rendered per scene configuration')
     bpy.types.Scene.min_renders_per_scene = bpy.props.IntProperty(
-        name='Min number of renders per scene',
+        name='',
         default=1,
         description='The min number of camera poses rendered per scene configuration')
 
@@ -205,33 +287,19 @@ def register():
     ####### CAMERA PROPERTIES #######
     #################################
     bpy.types.Scene.camera_focal_length = bpy.props.FloatProperty(
-        name='Focal length',
+        name='',
         unit='CAMERA')
     bpy.types.Scene.camera_sensor_width = bpy.props.FloatProperty(
-        name='Sensor width',
+        name='',
         unit='CAMERA')
     bpy.types.Scene.camera_resolution_height = bpy.props.IntProperty(
-        name='Resolution height',
+        name='',
         default= 480,
         subtype='PIXEL')
     bpy.types.Scene.camera_resolution_width = bpy.props.IntProperty(
-        name='Resolution width',
+        name='',
         default= 720,
         subtype='PIXEL')
-    bpy.types.Scene.camera_loc_vec = bpy.props.FloatVectorProperty(
-        name='',
-        unit='LENGTH')
-    bpy.types.Scene.camera_rot_enum = bpy.props.EnumProperty(
-        name='',
-        items=[('xyz', 'XYZ Euler angles', ''),
-               ('quat', 'Quaternions [w, x, y, z]', '')])
-    bpy.types.Scene.camera_rot_xyz = bpy.props.FloatVectorProperty(
-        name='',
-        unit='ROTATION')
-    bpy.types.Scene.camera_rot_quat = bpy.props.FloatVectorProperty(
-        name='',
-        default= [1,0,0,0],
-        size=4)
     bpy.types.Scene.is_structured_light = bpy.props.BoolProperty(
         name='Structured light',
         description='Toggles on structured light rendering. The pipeline process will be slower, but the results will be realistic noise on rendered dataset')
@@ -240,17 +308,17 @@ def register():
     ####### PROJECTOR PROPERTIES #######
     ####################################
     bpy.types.Scene.projector_focal_length = bpy.props.FloatProperty(
-        name='Focal length',
+        name='',
         unit='CAMERA')
     bpy.types.Scene.projector_sensor_width = bpy.props.FloatProperty(
-        name='Sensor width',
+        name='',
         unit='CAMERA')
     bpy.types.Scene.projector_resolution_height = bpy.props.IntProperty(
-        name='Resolution height',
+        name='',
         default= 480,
         subtype='PIXEL')
     bpy.types.Scene.projector_resolution_width = bpy.props.IntProperty(
-        name='Resolution width',
+        name='',
         default= 720,
         subtype='PIXEL')
     bpy.types.Scene.projector_loc_vec = bpy.props.FloatVectorProperty(
@@ -275,13 +343,24 @@ def register():
     ######################################
     bpy.types.Scene.output_path = bpy.props.StringProperty(
         name='',
-        subtype='DIR_PATH'
-    )
+        subtype='DIR_PATH')
+
+    #######################################
+    ####### RUN PIPELINE PROPERTIES #######
+    #######################################
+    bpy.types.Scene.save_pipeline_input_path = bpy.props.StringProperty(
+        name='',
+        subtype='DIR_PATH')
 
     for cl in classes:
         bpy.utils.register_class(cl)
 
 def unregister():
+    ##############################################
+    ####### INITIALIZE PIPELINE PROPERTIES #######
+    ##############################################
+    del bpy.types.Scene.load_pipeline_input_path
+
     ################################
     ####### SCENE PROPERTIES #######
     ################################
@@ -296,10 +375,6 @@ def unregister():
     del bpy.types.Scene.camera_sensor_width
     del bpy.types.Scene.camera_resolution_height
     del bpy.types.Scene.camera_resolution_width
-    del bpy.types.Scene.camera_loc_vec
-    del bpy.types.Scene.camera_rot_enum
-    del bpy.types.Scene.camera_rot_xyz
-    del bpy.types.Scene.camera_rot_quat
     del bpy.types.Scene.is_structured_light
 
     ####################################
@@ -318,6 +393,11 @@ def unregister():
     ####### OUTPUT PATH PROPERTIES #######
     ######################################
     del bpy.types.Scene.output_path
+
+    #######################################
+    ####### RUN PIPELINE PROPERTIES #######
+    #######################################
+    del bpy.types.Scene.save_pipeline_input_path
 
     for cl in classes:
         bpy.utils.unregister_class(cl)

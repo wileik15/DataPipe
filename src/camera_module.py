@@ -1,6 +1,5 @@
 import bpy
 from .projector import Projector
-from . import utility_fuctions
 import random
 
 
@@ -14,7 +13,6 @@ class BlendCamera:
         self.name = camera_name
         
         self.is_structured_light = self.camera_config["is_structured_light"]
-
         self.pose_list = self.camera_config["wrld2cam_pose_list"]
 
         self.blend_cam_obj, self.blend_cam_data = self.import_camera()
@@ -66,13 +64,11 @@ class BlendCamera:
 
         #Sample random pose from input list
         rand_pose = self.get_random_pose_from_list()
-        rot_quat, translation = utility_fuctions.transformation_matrix_to_quat_and_translation(rand_pose)
+        
+        self.blend_cam_obj.location = rand_pose['location']
+        self.blend_cam_obj.rotation_quaternion = rand_pose['rotation']
         
         print("in move() ---> Blender object: {}".format(self.blend_cam_obj.name))
 
-        print("in move() ---> Rotation = {}\nTranslation = {}\n".format(rot_quat, translation))
-
-        #Set blender camera objects position
-        self.blend_cam_obj.rotation_quaternion = rot_quat
-        self.blend_cam_obj.location = translation
+        print("in move() ---> Rotation = {}\nTranslation = {}\n".format(self.blend_cam_obj.rotation_quaternion, self.blend_cam_obj.location))
 

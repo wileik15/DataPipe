@@ -2,6 +2,7 @@ import bpy
 import subprocess
 import numpy as np
 from scipy.spatial.transform import Rotation
+import os
 
 class PathUtility:
 
@@ -147,6 +148,10 @@ def cam2obj_transform(blender_object, cam_pos_matrix):
     t_co = T_co[0:3,3] #Translation
 
     return T_co, R_co, t_co
+
+def file_exists(file_path: str):
+
+    return os.path.exists(file_path)
 
 
 def initialize_pipeline_environment():

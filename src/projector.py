@@ -27,9 +27,11 @@ class Projector:
         #Generate patterns if they dont exist
         pattern_generator.PatternGenerator.generate_fringe_patterns(self.pattern_shape)
         
-        self.proj2cam_rotation_quat, self.proj2cam_translation = utility_fuctions.transformation_matrix_to_quat_and_translation(self.projector_config["proj2cam_pose"])
-        
-        print("\n### Projector pose ###\nQuaternions: {}\nTranslation: {}\n".format(self.proj2cam_rotation_quat, self.proj2cam_translation))
+        #self.proj2cam_rotation_quat, self.proj2cam_translation = utility_fuctions.transformation_matrix_to_quat_and_translation(self.projector_config["proj2cam_pose"])
+        self.cam2proj_rot = self.projector_config['proj2cam_pose']['rotation']
+        self.cam2proj_loc = self.projector_config['proj2cam_pose']['location']
+
+        print("\n### Projector pose ###\nQuaternions: {}\nTranslation: {}\n".format(self.cam2proj_rot, self.cam2proj_loc))
 
         self.pattern_names_list = self.generate_pattern_names()
         self.pattern_filepath = utility_fuctions.PathUtility.get_patterns_path()
@@ -148,8 +150,6 @@ class Projector:
             light_obj = bpy.data.objects.new(name=pattern_name, object_data=light) #Store blender light object as variable
             coll.objects.link(light_obj) #Link light object to assiciated collection
             
-            light_obj.rotation_mode = 'QUATERNION' #Set rotation mode to quaternion
-            
             light.spot_blend = 0 #Edge blending of spotlight turned off
             light.spot_size = np.pi #Set spot field of view to 180 (Larger than the image field of view)
             light.shadow_soft_size = 0 #Makes edges of projected image sharp
@@ -157,8 +157,14 @@ class Projector:
             light_obj.parent = bpy.data.objects[self.camera.name] #Set light to child of camera
             light_obj.parent_type = 'OBJECT'
 
-            light_obj.location = self.proj2cam_translation #Set light location relative to camera
-            light_obj.rotation_quaternion = self.proj2cam_rotation_quat
+            light_obj.location = self.cam2proj_loc #Set light location relative to camera
+            
+            if len(self.cam2proj_rot) == 4:
+                light_obj.rotation_mode = 'QUATERNION' #Set rotation mode to quaternion
+                light_obj.rotation_quaternion = self.cam2proj_rot
+            else:
+                light_obj.rotation_mode = 'XYZ' #Set rotation mode to euler xyz
+                light_obj.rotation_euler = self.cam2proj_rot
 
             light_obj.name = pattern_name #Rename light to be same as associated view layer and collection
 

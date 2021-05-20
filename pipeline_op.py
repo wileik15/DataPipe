@@ -1,5 +1,6 @@
 print("############ pipeline_op Start ############")
 import bpy
+from bpy.types import Mesh, Scene
 from .src import config_module
 from .src import utility_fuctions
 from .src.camera_module import BlendCamera
@@ -10,24 +11,12 @@ import time
 ############## DO THIS FOR PIPELINE CLASSES ##############
 #from .src import random_object
 
-############ TEMPORARY ############
-'''
-import os
-from pathlib import Path
-resource_path = bpy.utils.resource_path(type='USER')
-print("\nBlender resource path:\n{}".format(resource_path))
-subfolder = "/util/test_img.jpg"
-image_path = Path("{}/scripts/addons{}".format(resource_path,subfolder))
-image_path.resolve()
-print(str(image_path))
-'''
-###################################
 
 ############# SCENE OPERATORS #############
 class DATAPIPE_OT_Set_up_Scene(bpy.types.Operator):
 
     bl_idname = 'datapipe.set_scene_parameters'
-    bl_label = 'Set rendering engine to Cycles'
+    bl_label = 'Initialize pipeline'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -36,6 +25,49 @@ class DATAPIPE_OT_Set_up_Scene(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class DATAPIPE_OT_Load_input_file(bpy.types.Operator):
+
+    bl_idname = 'datapipe.load_input_file'
+    bl_label = 'Load'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+
+        #Load all input from file to configmodule.input_storage
+        config_module.input_storage.input_from_file(context.scene.load_pipeline_input_path)
+        
+        config_module.input_storage.set_input_panel_vars_from_dict(context)
+
+        return {'FINISHED'}
+
+class DATAPIPE_OT_Import_dropzone_object(bpy.types.Operator):
+
+    bl_idname = 'datapipe.import_dropzone_object'
+    bl_label = 'Import dropzone'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        
+        if 'drop_zone' not in bpy.data.objects:
+            bpy.ops.mesh.primitive_cube_add()
+            drop_zone = bpy.context.active_object
+            drop_zone.name = 'drop_zone'
+            drop_zone.location = (0, 0, 2)
+            drop_zone.scale = (0.5, 0.5, 0.5)
+
+            bpy.ops.object.select_all(action='DESELECT')
+            
+            if drop_zone.select_get() is False:
+                drop_zone.select_set(True)
+
+            print("Objects in view layer:\n{}".format(bpy.context.view_layer.objects))
+            bpy.context.view_layer.objects.active = drop_zone
+            #bpy.ops.object.transform_apply(location = False, scale = True, rotation = False)
+            bpy.ops.object.select_all(action='DESELECT')
+
+        return {'FINISHED'}
+
+############# CAMERA OPERATORS #############
 class DATAPIPE_OT_Append_camera_pose(bpy.types.Operator):
 
     bl_idname = 'datapipe.append_camera_pose'
@@ -46,24 +78,23 @@ class DATAPIPE_OT_Append_camera_pose(bpy.types.Operator):
 
         camera_pose_list = config_module.input_storage.config_dict['camera']['wrld2cam_pose_list']
         
-        if context.scene.camera_rot_enum == 'quat':
-            rot = context.scene.camera_rot_quat
-            loc = context.scene.camera_loc_vec
+        if 'temp_cam' in bpy.data.cameras.keys():
+            cam = bpy.data.objects['temp_cam']
+            
+            loc = list(cam.location)
+            cam.rotation_mode = 'QUATERNION'
+            rot = list(cam.rotation_quaternion)
+            print("Appended pose is:\n--> Loc: {}\n--> Rot: {}".format(loc, rot))
+            transform = {'rotation': rot, 'location': loc}
 
-        else:
-            rot = context.scene.camera_rot_xyz
-            loc = context.scene.camera_loc_vec
+            camera_pose_list.append(transform)
 
-        transform, R, t = utility_fuctions.pose_to_tranformation_matrix(rotation=rot, location=loc)
+            ###### reseting camera pose props to zero
+            cam.location = (0, 0, 1)
+            cam.rotation_mode = 'XYZ'
+            cam.rotation_euler = (np.pi/2, 0, 0)
 
-        camera_pose_list.append(transform)
-
-        ###### reseting camera pose props to zero
-        context.scene.camera_loc_vec = (0,0,0)
-        context.scene.camera_rot_quat = (1,0,0,0)
-        context.scene.camera_rot_xyz = (0,0,0)
-
-        print("\n### New pose added to camera pose list ###\n-> Utility camera pose list contains {} poses\n".format(len(config_module.input_storage.config_dict['camera']['wrld2cam_pose_list'])))
+            print("\n### New pose added to camera pose list ###\n-> Utility camera pose list contains {} poses\n".format(len(config_module.input_storage.config_dict['camera']['wrld2cam_pose_list'])))
 
         return {'FINISHED'}
 
@@ -108,19 +139,10 @@ class DATAPIPE_OT_Preview_camera_pose(bpy.types.Operator):
 
             cam.sensor_width = context.scene.camera_sensor_width
             cam.lens = context.scene.camera_focal_length
-
-            loc = context.scene.camera_loc_vec
-            cam_obj.location = loc
             
-            #Check rotation mode of camera
-            if context.scene.camera_rot_enum == 'quat':
-                cam_obj.rotation_mode = 'QUATERNION'
-                rot = context.scene.camera_rot_quat
-                cam_obj.rotation_quaternion = rot
-            else:
-                cam_obj.rotation_mode = 'XYZ'
-                rot = context.scene.camera_rot_xyz
-                cam_obj.rotation_euler = rot
+            #Set default pose
+            cam_obj.location = (0,0,1)
+            cam_obj.rotation_euler = (np.pi/2, 0, 0)
             
             #Check if projector pose should be previewed
             if context.scene.is_structured_light:
@@ -168,6 +190,23 @@ class DATAPIPE_OT_Store_object_path(bpy.types.Operator):
         ###################################
         return {'FINISHED'}
 
+class DATAPIPE_OT_Save_pipeline_info(bpy.types.Operator):
+
+    bl_idname = 'datapipe.save_pipeline_info'
+    bl_label = 'Export'
+
+    def execute(self, context):
+
+        config_module.input_storage.write_to_config_dict(context)
+
+        print("\nconfig dict after loading info:\n{}".format(config_module.input_storage.config_dict))
+
+        config_module.input_storage.write_to_pickle_file(context.scene.save_pipeline_input_path)
+
+        return {'FINISHED'}
+
+
+############# RUN PIPELINE OPERATORS #############
 class DATAPIPE_OT_Runner(bpy.types.Operator):
 
     bl_idname = 'datapipe.run_pipeline'
@@ -191,55 +230,28 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
             bpy.data.materials.remove(bpy.data.materials['temp_material'], do_unlink=True)
 
         # Load all information from GUI to config dict
-        config = config_module.input_storage.config_dict
-
-        camera_config = config['camera']
-        projector_config = config['projector']
-        scene_config = config['scene']
-        objects_config = config['objects']
-
-        #Scene inputs
-        scene_config['num_renders'] = context.scene.num_renders
-        scene_config['max_renders_per_scene'] = context.scene.max_renders_per_scene
-        scene_config['min_renders_per_scene'] = context.scene.min_renders_per_scene
-
-        #Camera intrinsics
-        camera_config['focal_length'] = context.scene.camera_focal_length
-        camera_config['sensor_width'] = context.scene.camera_sensor_width
-        camera_config['resolution'] = [context.scene.camera_resolution_height, context.scene.camera_resolution_width]
-        camera_config['is_structured_light'] = context.scene.is_structured_light
-
-        #Projector intrinsics
-        projector_config['focal_length'] = context.scene.projector_focal_length
-        projector_config['sensor_width'] = context.scene.projector_sensor_width
-        projector_config['resolution'] = [context.scene.projector_resolution_height, context.scene.projector_resolution_width]
-        
-        #Projector extrinsics
-        loc = context.scene.projector_loc_vec
-        if context.scene.projector_rot_enum == 'quat':
-            rot = context.scene.projector_rot_quat
-        else:
-            rot = context.scene.projector_rot_xyz
-        transform, R, t = utility_fuctions.pose_to_tranformation_matrix(rotation=rot, location=loc)
-        projector_config['proj2cam_pose'] = transform
-
+        config_module.input_storage.write_to_config_dict(context)
 
         ################### PIPELINE FROM HERE ON OUT ###################
         print("\nPIPELINE RUN INITIATED\n")
         start_time = time.time()
 
+        config = config_module.input_storage.config_dict
+
         camera = BlendCamera(camera_name='pipe_cam',config=config)
 
         loop_finished = False
-        
-        while not loop_finished:
+        i = 0
+        while not loop_finished and i < 20:
 
             scene = BlendScene(config=config, camera=camera)
+            i+=1
             
             for render in range(scene.renders_for_scene):
 
-                print("### Scene {} Render {}".format(scene.scene_num, render))
+                print("Rendering... Scene {} Render {}".format(scene.scene_number, render+1))
             loop_finished = scene.last_scene
+            del scene
 
 
         end_time = time.time()
@@ -250,12 +262,15 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
 
 
 classes = [
-           DATAPIPE_OT_Store_object_path,
-           DATAPIPE_OT_Append_camera_pose,
-           DATAPIPE_OT_Preview_camera_pose,
-           DATAPIPE_OT_Runner,
-           DATAPIPE_OT_Remove_camera_pose,
            DATAPIPE_OT_Set_up_Scene,
+           DATAPIPE_OT_Load_input_file,
+           DATAPIPE_OT_Import_dropzone_object,
+           DATAPIPE_OT_Store_object_path,
+           DATAPIPE_OT_Preview_camera_pose,
+           DATAPIPE_OT_Append_camera_pose,
+           DATAPIPE_OT_Remove_camera_pose,
+           DATAPIPE_OT_Save_pipeline_info,
+           DATAPIPE_OT_Runner,
           ]
     
 def register():
