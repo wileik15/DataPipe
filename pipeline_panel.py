@@ -1,5 +1,6 @@
 import bpy
 import numpy as np
+from .src.config_module import input_storage
 
 print("############ pipeline_panel Start ############")
 
@@ -13,9 +14,17 @@ class DATAPIPE_PT_scenes_panel(bpy.types.Panel):
     def draw(self, context):
 
         layout = self.layout
+        
+        row = layout.row()
+        row.operator('datapipe.set_scene_parameters', icon='PLAY')
 
-        layout.label(text="Scene Inputs")
-
+        row = layout.row()
+        row.prop(context.scene, 'num_renders')
+        
+        row = layout.row()
+        row.prop(context.scene, 'max_renders_per_scene')
+        row = layout.row()
+        row.prop(context.scene, 'min_renders_per_scene')
         
 
 
@@ -83,8 +92,7 @@ class DATAPIPE_PT_camera_panel(bpy.types.Panel):
             row.prop(context.scene, 'camera_rot_xyz')
         else:
             row.prop(context.scene, 'camera_rot_quat')
-        
-        ########### The preview operator was here
+
 
         #Structured light
         row = layout.row()
@@ -92,12 +100,9 @@ class DATAPIPE_PT_camera_panel(bpy.types.Panel):
 
         if context.scene.is_structured_light:
 
-            row = layout.row()
-            row.label(text='Projector inputs', icon='LIGHT_SPOT')
-
             #Projector intrinsics
             row = layout.row()
-            row.label(text='Intrinsic parameters', icon='LIGHT')
+            row.label(text='Projector intrinsics', icon='LIGHT')
 
             row = layout.row()
             row.prop(context.scene, 'projector_focal_length')
@@ -134,28 +139,21 @@ class DATAPIPE_PT_camera_panel(bpy.types.Panel):
                 row.prop(context.scene, 'projector_rot_quat')
         
         row = layout.row()
+        row.label(text='')
+
+        row = layout.row()
         row.operator('datapipe.preview_camera_pose', icon='WORKSPACE')
 
         row = layout.row()
+        row = layout.row()
+        row.scale_y = 2.0
         row.operator('datapipe.append_camera_pose', icon='FILE_NEW')
 
-            
-
-'''
-class DATAPIPE_PT_projector_panel(bpy.types.Panel):
-    bl_idname = 'Projector_PT_Panel'
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = 'DataPipe'
-    bl_label = "Projector inputs"
+        col = row.column()
+        col.operator('datapipe.remove_camera_pose', icon='TRASH')
 
 
-    def draw(self, context):
 
-        layout = self.layout
-
-        layout.label(text="Projector inputs here")
-'''
 
 class DATAPIPE_PT_run_panel(bpy.types.Panel):
     bl_idname = 'Run_PT_Panel'
@@ -187,6 +185,22 @@ classes = [
           ]
 
 def register():
+    ################################
+    ####### SCENE PROPERTIES #######
+    ################################
+    bpy.types.Scene.num_renders = bpy.props.IntProperty(
+        name='Number of renders', 
+        default=1,
+        description='Number of images to render')
+    bpy.types.Scene.max_renders_per_scene = bpy.props.IntProperty(
+        name='Max number of renders per scene',
+        default=1,
+        description='The max number of camera poses rendered per scene configuration')
+    bpy.types.Scene.min_renders_per_scene = bpy.props.IntProperty(
+        name='Min number of renders per scene',
+        default=1,
+        description='The min number of camera poses rendered per scene configuration')
+
     #################################
     ####### CAMERA PROPERTIES #######
     #################################
@@ -213,15 +227,14 @@ def register():
                ('quat', 'Quaternions [w, x, y, z]', '')])
     bpy.types.Scene.camera_rot_xyz = bpy.props.FloatVectorProperty(
         name='',
-        unit='ROTATION',
-        min=0, 
-        max=2*np.pi)
+        unit='ROTATION')
     bpy.types.Scene.camera_rot_quat = bpy.props.FloatVectorProperty(
         name='',
         default= [1,0,0,0],
         size=4)
     bpy.types.Scene.is_structured_light = bpy.props.BoolProperty(
-        name='Structured light')
+        name='Structured light',
+        description='Toggles on structured light rendering. The pipeline process will be slower, but the results will be realistic noise on rendered dataset')
     
     ####################################
     ####### PROJECTOR PROPERTIES #######
@@ -250,13 +263,11 @@ def register():
                ('quat', 'Quaternions [w, x, y, z]', '')])
     bpy.types.Scene.projector_rot_xyz = bpy.props.FloatVectorProperty(
         name='',
-        default= (0, np.pi/180*8.5, 0),
-        unit='ROTATION',
-        min=0, 
-        max=2*np.pi)
+        default= (0, -np.pi/180*8.5, 0),
+        unit='ROTATION')
     bpy.types.Scene.projector_rot_quat = bpy.props.FloatVectorProperty(
         name='',
-        default= (0.9972502, 0, 0.0741085, 0),
+        default= (0.9972502, 0, -0.0741085, 0),
         size=4)
     
     ######################################
@@ -271,6 +282,13 @@ def register():
         bpy.utils.register_class(cl)
 
 def unregister():
+    ################################
+    ####### SCENE PROPERTIES #######
+    ################################
+    del bpy.types.Scene.num_renders
+    del bpy.types.Scene.max_renders_per_scene
+    del bpy.types.Scene.min_renders_per_scene
+
     #################################
     ####### CAMERA PROPERTIES #######
     #################################

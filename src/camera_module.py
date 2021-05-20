@@ -1,12 +1,13 @@
 import bpy
-from projector import Projector
-import utility_fuctions
+from .projector import Projector
+from . import utility_fuctions
 import random
 
 
 class BlendCamera:
 
     def __init__(self, camera_name: str, config: dict):
+        print("### Camera object created ###")
 
         self.camera_config = config['camera']
 
@@ -16,7 +17,7 @@ class BlendCamera:
 
         self.pose_list = self.camera_config["wrld2cam_pose_list"]
 
-        self.blend_cam_obj = self.import_camera()
+        self.blend_cam_obj, self.blend_cam_data = self.import_camera()
 
         if self.is_structured_light:
             self.projector = Projector(self, config=config)
@@ -36,7 +37,9 @@ class BlendCamera:
         parent_col = bpy.context.scene.collection
         parent_col.objects.link(camera_obj)
 
-        return camera_obj
+        camera_obj.rotation_mode = 'QUATERNION'
+
+        return camera_obj, camera
         
 
 
@@ -44,7 +47,7 @@ class BlendCamera:
         """
         Selects a random pose from camera pose list.
 
-        returns random pose.
+        Returns random tansformation numpy matrix.
         """
         
         poses = self.pose_list
@@ -59,13 +62,17 @@ class BlendCamera:
         """
         moves camera object to random position.
         """
-        blend_obj = self.blend_cam_obj
+        print("\n###### MOVING CAMERA ######")
+
         #Sample random pose from input list
         rand_pose = self.get_random_pose_from_list()
-        rot_quat, transl = utility_fuctions.transformation_matrix_to_quat_and_translation(rand_pose)
-        print("Blender object: {}".format(blend_obj.name))
-        print("Rotation = {}\nTranslation = {}".format(rot_quat, transl))
+        rot_quat, translation = utility_fuctions.transformation_matrix_to_quat_and_translation(rand_pose)
+        
+        print("in move() ---> Blender object: {}".format(self.blend_cam_obj.name))
+
+        print("in move() ---> Rotation = {}\nTranslation = {}\n".format(rot_quat, translation))
+
         #Set blender camera objects position
-        blend_obj.rotation_quaternion = rot_quat
-        blend_obj.location = transl
+        self.blend_cam_obj.rotation_quaternion = rot_quat
+        self.blend_cam_obj.location = translation
 

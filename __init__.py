@@ -12,7 +12,6 @@ General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 '''
-
 print("########### __init__ Start ###########")
 bl_info = {
     "name" : "DataPipe",
@@ -47,9 +46,6 @@ if locals().get('loaded'):
     del reload, modules
 
 loaded = True
-
-#################### Scene settings TEMP ####################
-bpy.context.scene.unit_settings.system_rotation = 'RADIANS'
 
 
 #Reset dict every time addon is loaded

@@ -1,9 +1,8 @@
-import random
 import os
-
 import bpy
 import numpy as np
-import utility_fuctions
+from . import utility_fuctions
+from . import pattern_generator
 
 print("########## Projector start ##########")
 
@@ -13,25 +12,29 @@ class Projector:
     """
 
     def __init__(self, blend_camera: object, config: dict):
+        print("### Projector object created ###")
 
         self.projector_config = config['projector']
 
         self.num_patterns = 2
         self.num_phase_shifts = 3
-        self.pattern_shape = [1080, 1920] # This should be collected from config file
-        self.focal_length = 50            # This should be collected from config file
-        self.sensor_size_horizontal = 36  # This should be collected from config file
+
+        #Collect intrinsics from config
+        self.pattern_shape = self.projector_config['resolution']
+        self.focal_length = self.projector_config['focal_length']
+        self.sensor_size_horizontal = self.projector_config['sensor_width']
+
+        #Generate patterns if they dont exist
+        pattern_generator.PatternGenerator.generate_fringe_patterns(self.pattern_shape)
         
         self.proj2cam_rotation_quat, self.proj2cam_translation = utility_fuctions.transformation_matrix_to_quat_and_translation(self.projector_config["proj2cam_pose"])
-        print(self.proj2cam_rotation_quat, self.proj2cam_translation)
+        
+        print("\n### Projector pose ###\nQuaternions: {}\nTranslation: {}\n".format(self.proj2cam_rotation_quat, self.proj2cam_translation))
+
         self.pattern_names_list = self.generate_pattern_names()
         self.pattern_filepath = utility_fuctions.PathUtility.get_patterns_path()
         
         self.camera = blend_camera #BlendCamera object
-
-        #PatternGenerator.generate_fringe_patterns(self.pattern_shape[0], self.pattern_shape[1])
-
-        print(bpy.data.scenes['Scene'].collection)
 
         self.create_collections_and_viewlayers()
         self.import_light_sources()
@@ -145,6 +148,8 @@ class Projector:
             light_obj = bpy.data.objects.new(name=pattern_name, object_data=light) #Store blender light object as variable
             coll.objects.link(light_obj) #Link light object to assiciated collection
             
+            light_obj.rotation_mode = 'QUATERNION' #Set rotation mode to quaternion
+            
             light.spot_blend = 0 #Edge blending of spotlight turned off
             light.spot_size = np.pi #Set spot field of view to 180 (Larger than the image field of view)
             light.shadow_soft_size = 0 #Makes edges of projected image sharp
@@ -156,70 +161,76 @@ class Projector:
             light_obj.rotation_quaternion = self.proj2cam_rotation_quat
 
             light_obj.name = pattern_name #Rename light to be same as associated view layer and collection
-            
-            #def create_projector_node_tree(self, light)
-            light.use_nodes = True
-            node_tree = light.node_tree
-            nodes = node_tree.nodes
-            links = node_tree.links
 
-            #Store auto generated nodes for later use
-            emission_node = nodes[0]
-            light_out_node = nodes[1]
-            
-            #Create and place texture coordinate node in node tree
-            texture_coord_node = nodes.new(type='ShaderNodeTexCoord')
-            texture_coord_node.location = (0, 0)
-            texture_coord_node.name = "text_coord_{}".format(light.name)
-
-            #Create and place separate XYZ node in node tree
-            separate_xyz_node = nodes.new(type='ShaderNodeSeparateXYZ')
-            separate_xyz_node.location = (200, -80)
-            separate_xyz_node.name = "separateXYZ_{}".format(light.name)
-
-            links.new(input=separate_xyz_node.inputs[0], output=texture_coord_node.outputs[1]) #Link texture node to seperate xyz node
-
-            #Create and place vector math divide node in node tree
-            divide_node = nodes.new(type='ShaderNodeVectorMath')
-            divide_node.location = (400, 0)
-            divide_node.operation = 'DIVIDE'
-            divide_node.name = "divide_{}".format(light.name)
-
-            links.new(input=divide_node.inputs[0], output=texture_coord_node.outputs[1]) #Link texture node divide node
-            links.new(input=divide_node.inputs[1], output=separate_xyz_node.outputs[2]) #Link seperate xyz node to texture node
-
-            #Mapping node
-            mapping_node = nodes.new(type='ShaderNodeMapping')
-            mapping_node.location = (600, 0)
-            mapping_node.name = "mapping_{}".format(light.name)
-
-            x_scale = (self.focal_length/(self.sensor_size_horizontal)) #Scale mapping node to focal length and vertical resolution
-            y_scale = (self.focal_length/(self.sensor_size_horizontal))*(self.pattern_shape[1]/self.pattern_shape[0]) #Scale mapping node to focal length and horizontal resolution
-
-            links.new(input=mapping_node.inputs[0], output=divide_node.outputs[0])
-            mapping_node.inputs[1].default_value = [0.5,0.5,0] #Center image in sportlight
-            mapping_node.inputs[2].default_value = [0,0,np.pi] #Rotate image about z-axis of camera
-            mapping_node.inputs[3].default_value = [x_scale, y_scale, 1] #SCaling image mapping to fit focal length
-
-            #Texture image node
-            texture_img_node = nodes.new(type='ShaderNodeTexImage')
-            texture_img_node.location = (800, 0)
-            texture_img_node.name = "text_img_{}".format(light.name)
-
-            links.new(input=texture_img_node.inputs[0], output=mapping_node.outputs[0]) #Link mapping node to texture image node
-            texture_img_node.extension = 'CLIP' #Clip image, so that it doesnt repeat
-
-            pattern_filename = '{}x{}_{}.jpg'.format(self.pattern_shape[0],self.pattern_shape[1], light.name) #Filename of pattern stored in
-            pattern_img = bpy.data.images.load(filepath=os.path.join(self.pattern_filepath,pattern_filename))
-            texture_img_node.image = pattern_img
+            self.create_projector_node_tree(light=light)
 
             
-            emission_node.location = (1200, 0)
-            emission_node.name = 'emission_{}'.format(light.name)
+    def create_projector_node_tree(self, light):
 
-            links.new(input=emission_node.inputs[0], output=texture_img_node.outputs[0]) #Link texture image node to emission node
-            emission_node.inputs[1].default_value = 10
+        light.use_nodes = True
+        node_tree = light.node_tree
+        nodes = node_tree.nodes
+        links = node_tree.links
 
-            light_out_node.location = (1400, 0)
-            light_out_node.name = "light_output_{}".format(light.name)
+        #Store auto generated nodes for later use
+        emission_node = nodes[0]
+        light_out_node = nodes[1]
+        
+        #Create and place texture coordinate node in node tree
+        texture_coord_node = nodes.new(type='ShaderNodeTexCoord')
+        texture_coord_node.location = (0, 0)
+        texture_coord_node.name = "text_coord_{}".format(light.name)
+
+        #Create and place separate XYZ node in node tree
+        separate_xyz_node = nodes.new(type='ShaderNodeSeparateXYZ')
+        separate_xyz_node.location = (200, -80)
+        separate_xyz_node.name = "separateXYZ_{}".format(light.name)
+
+        links.new(input=separate_xyz_node.inputs[0], output=texture_coord_node.outputs[1]) #Link texture node to seperate xyz node
+
+        #Create and place vector math divide node in node tree
+        divide_node = nodes.new(type='ShaderNodeVectorMath')
+        divide_node.location = (400, 0)
+        divide_node.operation = 'DIVIDE'
+        divide_node.name = "divide_{}".format(light.name)
+
+        links.new(input=divide_node.inputs[0], output=texture_coord_node.outputs[1]) #Link texture node divide node
+        links.new(input=divide_node.inputs[1], output=separate_xyz_node.outputs[2]) #Link seperate xyz node to texture node
+
+        #Mapping node
+        mapping_node = nodes.new(type='ShaderNodeMapping')
+        mapping_node.location = (600, 0)
+        mapping_node.name = "mapping_{}".format(light.name)
+
+        x_scale = (self.focal_length/(self.sensor_size_horizontal)) #Scale mapping node to focal length and vertical resolution
+        y_scale = (self.focal_length/(self.sensor_size_horizontal))*(self.pattern_shape[1]/self.pattern_shape[0]) #Scale mapping node to focal length and horizontal resolution
+
+        links.new(input=mapping_node.inputs[0], output=divide_node.outputs[0])
+        mapping_node.inputs[1].default_value = [0.5,0.5,0] #Center image in sportlight
+        mapping_node.inputs[2].default_value = [0,0,np.pi] #Rotate image about z-axis of camera
+        mapping_node.inputs[3].default_value = [x_scale, y_scale, 1] #SCaling image mapping to fit focal length
+
+        #Texture image node
+        texture_img_node = nodes.new(type='ShaderNodeTexImage')
+        texture_img_node.location = (800, 0)
+        texture_img_node.name = "text_img_{}".format(light.name)
+
+        links.new(input=texture_img_node.inputs[0], output=mapping_node.outputs[0]) #Link mapping node to texture image node
+        texture_img_node.extension = 'CLIP' #Clip image, so that it doesnt repeat
+
+        #Collect image from /utility/SL_patterns folder
+        pattern_filename = '{}x{}_{}.jpg'.format(self.pattern_shape[0],self.pattern_shape[1], light.name) #Filename of pattern stored in
+        pattern_img = bpy.data.images.load(filepath=os.path.join(self.pattern_filepath,pattern_filename))
+        texture_img_node.image = pattern_img #Set image to be projected from node
+
+        #Emission node
+        emission_node.location = (1200, 0)
+        emission_node.name = 'emission_{}'.format(light.name)
+
+        links.new(input=emission_node.inputs[0], output=texture_img_node.outputs[0]) #Link texture image node to emission node
+        emission_node.inputs[1].default_value = 10
+
+        #Light output node
+        light_out_node.location = (1400, 0)
+        light_out_node.name = "light_output_{}".format(light.name)
 

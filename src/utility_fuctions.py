@@ -68,7 +68,9 @@ def xyz2rot(xyz):
 
     xyz_rot = Rotation.from_euler(seq='XYZ',angles=xyz)
     R = xyz_rot.as_matrix()
-    return R
+    q = xyz_rot.as_quat()
+    quat = np.array([q[3], q[0], q[1], q[2]])
+    return R, quat
 
 def rot2quat(rot):
     """
@@ -87,7 +89,7 @@ def rot2quat(rot):
 
 def pose_to_tranformation_matrix(rotation, location):
     """
-    Changes Blenders quaternion representation and location
+    Changes Blenders quaternion or Euler rotational representation and location
     to transformation matrix representation
     """
 
@@ -99,9 +101,9 @@ def pose_to_tranformation_matrix(rotation, location):
     t = location
 
     T = np.array([[R[0,0], R[0,1], R[0,2], t[0]],
-                    [R[1,0], R[1,1], R[1,2], t[1]],
-                    [R[2,0], R[2,1], R[2,2], t[2]],
-                    [0,      0,      0,      1   ]])
+                  [R[1,0], R[1,1], R[1,2], t[1]],
+                  [R[2,0], R[2,1], R[2,2], t[2]],
+                  [0,      0,      0,      1   ]])
     return T, R, t
 
 
@@ -145,3 +147,19 @@ def cam2obj_transform(blender_object, cam_pos_matrix):
     t_co = T_co[0:3,3] #Translation
 
     return T_co, R_co, t_co
+
+
+def initialize_pipeline_environment():
+    """
+    Setting blender variables to the required specifications for the pipeline.
+    -Rendering engine is set to cycles and gpu-compute.
+    -Scene units are set to metric.
+    """
+
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.cycles.device = 'GPU'
+
+    bpy.context.scene.unit_settings.system = 'METRIC'
+    bpy.context.scene.unit_settings.length_unit = 'METERS'
+    bpy.context.scene.unit_settings.system_rotation = 'RADIANS'
+    bpy.context.scene.unit_settings.mass_unit = 'KILOGRAMS'

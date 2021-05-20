@@ -18,9 +18,13 @@ class input_storage:
                         'resolution': [480, 720]
                     },
                     'scene': {
+                        'num_renders': 1,
+                        'max_renders_per_scene': 1,
+                        'min_renders_per_scene': 1,
 
                     },
                     'objects': {
+                        'objects_list':[]
 
                     }
 
@@ -48,9 +52,12 @@ class input_storage:
                                 'resolution': [480, 720]
                             },
                             'scene': {
+                                'num_renders': 1,
+                                'max_renders_per_scene': 1
 
                             },
                             'objects': {
+                                'objects_list':[]
 
                             }
 
