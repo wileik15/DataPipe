@@ -1,8 +1,11 @@
+from genericpath import exists
+import types
 import bpy
 import subprocess
 import numpy as np
 from scipy.spatial.transform import Rotation
 import os
+from pathlib import Path
 
 class PathUtility:
 
@@ -11,27 +14,56 @@ class PathUtility:
         """
         Returns path to addon folder.
         """
-        resource_path = bpy.utils.resource_path(type='USER')
-        addon_path = "{}/scripts/addons/DataPipe".format(resource_path)
+        resource_path = Path(bpy.utils.resource_path(type='USER'))
+        addon_sub_path = Path("scripts/addons/DataPipe")
+        addon_path = Path.joinpath(resource_path, addon_sub_path)
         print("addon_path:\n{}".format(addon_path))
-        return addon_path
+        return str(addon_path)
 
     @staticmethod
     def get_patterns_path():
         """
         Returns path to patterns folder.
         """
-        resource_path = bpy.utils.resource_path(type='USER')
-        pattern_path = "{}/scripts/addons/DataPipe/utility/SL_patterns/".format(resource_path)
-        print("Patterns path:\n{}".format(pattern_path))
-        return pattern_path
+        resource_path = Path(bpy.utils.resource_path(type='USER'))
+        pattern_sub_path = Path("scripts/addons/DataPipe/utility/SL_patterns")
+        pattern_path = Path.joinpath(resource_path, pattern_sub_path)
+        print("$$$$$$$\nResource path:\n{}\n--> Type: {}\n\nPattern sub path:\n{}\n--> Type: {}\n\nTotal path:\n{}\n--> Type: {}\n$$$$$$$".format(resource_path, type(resource_path), pattern_sub_path, type(pattern_sub_path), pattern_path, type(pattern_path)))
+        return str(pattern_path)
+    
+    @staticmethod
+    def get_pipeline_run_output_path(path: Path):
+        path = Path(bpy.path.abspath(path)).resolve()
+        dir_name = Path("DataPipe_run")
+        out_path = Path.joinpath(path,dir_name)
+        print("Try 1 at path_\n{}".format(str(out_path)))
+        if not os.path.exists(out_path):
+            return str(out_path)
+
+        exists = True
+        index = 1
+
+        while exists:
+            dir_name = 'DataPipe_run.{:04d}'.format(index)
+            out_path = Path.joinpath(path, dir_name)
+            print("Try {} at path:\n{}".format(index+1, str(out_path)))
+            if not Path.exists(out_path):
+                exists = False
+                return str(out_path)
+            index += 1
+        
 
 
 
 class PackageControll:
+    """
+    Class for installing python dependencies for the pipeline addonq
+    """
 
-    @staticmethod
-    def installDependencies(package_list):
+    package_list = ["opencv-python", "scipy"]
+
+    @classmethod
+    def installDependencies(cls):
         """
         installing package dependencies to Blenders bundled python
         """
@@ -46,7 +78,7 @@ class PackageControll:
         subprocess.call([py_exec, '-m', 'pip', 'install', '--upgrade', 'pip'])
 
         #Loop package list to install all of them
-        for package_name in package_list:
+        for package_name in cls.package_list:
             subprocess.check_call([py_exec, '-m', 'pip', 'install','{}'.format(package_name)])
 
 
@@ -168,3 +200,16 @@ def initialize_pipeline_environment():
     bpy.context.scene.unit_settings.length_unit = 'METERS'
     bpy.context.scene.unit_settings.system_rotation = 'RADIANS'
     bpy.context.scene.unit_settings.mass_unit = 'KILOGRAMS'
+    
+    
+    #Make all existing meshes be rigid bodies.
+    for obj in bpy.data.objects:
+        print("---------")
+        print("Object name {}".format(obj.name))
+        print("Object type {}".format(type(obj)))
+        
+        bpy.context.view_layer.objects.active = obj
+        print("Object type: {}".format(str(bpy.context.object.type)))
+        if bpy.context.object.type == 'MESH':
+            bpy.ops.rigidbody.object_add(type='PASSIVE')
+            bpy.context.object.rigid_body.collision_shape = 'MESH'

@@ -89,7 +89,57 @@ class DATAPIPE_PT_objects_panel(bpy.types.Panel):
 
         layout = self.layout
 
-        layout.label(text="Objects Inputs")
+        row = layout.row()
+        row.label(text="Object filepath:", icon='OUTLINER_OB_MESH')
+        row = layout.row()
+        row.prop(context.scene, 'object_path')
+
+        box = layout.box()
+
+        row = box.split(factor=0.5)
+
+        left_col = row.column()
+        right_col = row.column()
+
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Scaling factor')
+
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Instances in scene Max')
+
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Min')
+
+        row = right_col.row()
+        row.prop(context.scene, 'object_scale')
+
+        row = right_col.row()
+        row.prop(context.scene, 'object_instances_max')
+
+        row = right_col.row()
+        row.prop(context.scene, 'object_instances_min')
+
+        box = layout.box()
+        row = box.row()
+        row.operator('datapipe.preview_object', icon='WORKSPACE')
+
+        row = box.row()
+
+        row = box.row()
+        left_col = row.column()
+        right_col = row.column()
+
+        row = left_col.row()
+        row.scale_y = 2
+        row.operator('datapipe.append_object_data', icon='FILE_NEW')
+
+        row = right_col.row()
+        row.scale_y = 2
+        row.operator('datapipe.remove_last_object_data', icon='TRASH')
+
 
 
 
@@ -111,7 +161,6 @@ class DATAPIPE_PT_camera_panel(bpy.types.Panel):
         row = layout.split(factor=0.5)
         
         left_col = row.column()
-        left_col.alignment = 'RIGHT'
         right_col = row.column()
 
         #Focal length input
@@ -243,9 +292,17 @@ class DATAPIPE_PT_run_panel(bpy.types.Panel):
         col = row.column()
         col.scale_x = 0.7
         col.operator('datapipe.save_pipeline_info', icon='EXPORT')
+        
+        row = layout.row()
 
-        row = layout.row()
-        row = layout.row()
+        box = layout.box()
+        row = box.row()
+        row.label(text='Save pipeline output to:')
+        row = box.row()
+        row.prop(context.scene, 'pipeline_output_path')
+
+        row = box.row()
+        row = box.row()
         row.operator('datapipe.run_pipeline', icon='PLAY')
 
         
@@ -282,6 +339,29 @@ def register():
         name='',
         default=1,
         description='The min number of camera poses rendered per scene configuration')
+    
+    #################################
+    ####### OBJECT PROPERTIES #######
+    #################################
+    bpy.types.Scene.object_path = bpy.props.StringProperty(
+        name='',
+    subtype='FILE_PATH',
+    description='Filepath to object included in pipeline')
+    bpy.types.Scene.object_scale = bpy.props.FloatProperty(
+        name='',
+        soft_min=0,
+        description='Scaling of the object. Used to ensure that the 3D model\'s units are equal to scene units',
+        default=1)
+    bpy.types.Scene.object_instances_max = bpy.props.IntProperty(
+        name='',
+        soft_min=0,
+        default=2,
+        description='Maximum number of object instance in each scene.')
+    bpy.types.Scene.object_instances_min = bpy.props.IntProperty(
+        name='',
+        soft_min=0,
+        default=0,
+        description='Minimum number of object instance in each scene.')
 
     #################################
     ####### CAMERA PROPERTIES #######
@@ -351,6 +431,10 @@ def register():
     bpy.types.Scene.save_pipeline_input_path = bpy.props.StringProperty(
         name='',
         subtype='DIR_PATH')
+    bpy.types.Scene.pipeline_output_path = bpy.props.StringProperty(
+        name='',
+        subtype='DIR_PATH',
+        description='Directory to save output from pipeline run.')
 
     for cl in classes:
         bpy.utils.register_class(cl)
@@ -367,6 +451,14 @@ def unregister():
     del bpy.types.Scene.num_renders
     del bpy.types.Scene.max_renders_per_scene
     del bpy.types.Scene.min_renders_per_scene
+
+    #################################
+    ####### OBJECT PROPERTIES #######
+    #################################
+    del bpy.types.Scene.object_path
+    del bpy.types.Scene.object_scale
+    del bpy.types.Scene.object_instances_max
+    del bpy.types.Scene.object_instances_min
 
     #################################
     ####### CAMERA PROPERTIES #######
@@ -398,6 +490,7 @@ def unregister():
     ####### RUN PIPELINE PROPERTIES #######
     #######################################
     del bpy.types.Scene.save_pipeline_input_path
+    del bpy.types.Scene.pipeline_output_path
 
     for cl in classes:
         bpy.utils.unregister_class(cl)

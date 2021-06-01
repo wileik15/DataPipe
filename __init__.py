@@ -33,7 +33,6 @@ from .src.config_module import input_storage
 
 ## This is needed for multi file addons. Otherwise only the __init__.py file will be reloaded.
 # [Blender Logo] -> System -> Reload Scripts
-import os
 if locals().get('loaded'):
     print("Addon was previously loaded. Force-reloading submodules.")
     loaded = False

@@ -1,10 +1,15 @@
 print("############ pipeline_op Start ############")
+from pathlib import Path
+import types
 import bpy
 from bpy.types import Mesh, Scene
 from .src import config_module
 from .src import utility_fuctions
 from .src.camera_module import BlendCamera
 from .src.scene_module import BlendScene
+from .src.objects_module import ObjectManager
+from .src.render_module import Renderer
+from .src.simulation_module import Simulation
 import numpy as np
 import time
 
@@ -51,7 +56,9 @@ class DATAPIPE_OT_Import_dropzone_object(bpy.types.Operator):
         if 'drop_zone' not in bpy.data.objects:
             bpy.ops.mesh.primitive_cube_add()
             drop_zone = bpy.context.active_object
+            mesh_name = drop_zone.name
             drop_zone.name = 'drop_zone'
+            bpy.data.meshes[mesh_name].name = 'drop_zone_mesh'
             drop_zone.location = (0, 0, 2)
             drop_zone.scale = (0.5, 0.5, 0.5)
 
@@ -62,10 +69,120 @@ class DATAPIPE_OT_Import_dropzone_object(bpy.types.Operator):
 
             print("Objects in view layer:\n{}".format(bpy.context.view_layer.objects))
             bpy.context.view_layer.objects.active = drop_zone
-            #bpy.ops.object.transform_apply(location = False, scale = True, rotation = False)
             bpy.ops.object.select_all(action='DESELECT')
 
         return {'FINISHED'}
+
+############# OBJECT OPERATORS #############
+class DATAPIPE_OT_Preview_object(bpy.types.Operator):
+
+    bl_idname = 'datapipe.preview_object'
+    bl_label = 'Toggle object preview'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        
+        filepath = Path(bpy.path.abspath(context.scene.object_path)).resolve() #Filepath from input
+        print("Filepath of object:\n{}\nwith type: {}".format(filepath, type(filepath))) 
+
+        scale = context.scene.object_scale
+        ob_scale = [scale, scale, scale] #object scale from input
+        print("Scaling type is {}".format(type(ob_scale)))
+
+        
+        if filepath.suffix == '.obj': #Filetype has to be .obj
+
+            if 'temp_collection' not in bpy.data.collections.keys(): #Check for earlier import
+
+                temp_collection = bpy.data.collections.new(name='temp_collection')
+                bpy.context.scene.collection.children.link(temp_collection) #Link to scene collection
+
+            temp_collection = bpy.data.collections['temp_collection']
+
+            if 'temp_object' not in bpy.data.objects.keys() and 'temp_material' not in bpy.data.materials.keys():
+                bpy.ops.import_scene.obj(filepath=str(filepath))
+                print("\nImported .obj file contains {} objects:\n{}\n".format(len(list(bpy.context.selected_objects)), list(bpy.context.selected_objects)))
+                if len(bpy.context.selected_objects) != 1: #Only one object can be imported at a time
+                    for ob in bpy.context.selected_objects:
+                        #Remove belonging data
+                        bpy.data.materials.remove(ob.active_material, do_unlink=True)
+                        bpy.data.objects.remove(ob, do_unlink=True)
+                        bpy.data.meshes.remove(bpy.data.meshes[ob.name], do_unlink=True)
+                    print("Input .obj file can only contain one object")
+                else:
+                    ob = bpy.context.selected_objects[0] #Get object
+                    
+                    ob.users_collection[0].objects.unlink(ob) #Remove object from default collection
+                    temp_collection.objects.link(ob) #Link to temp collection
+
+                    mesh_name = ob.name #Store current mesh name
+
+                    ob.name = 'temp_object'
+                    ob.scale = ob_scale #Set scale from input
+
+                    ob_mat = ob.active_material #ob material data
+                    ob_mat.name = 'temp_material'
+
+                    bpy.data.meshes[mesh_name].name = 'temp_mesh' #ob mesh data
+
+                    print("     Object {}\n     material:\n     {}".format(ob.name, ob.active_material))
+            else:
+                if 'temp_object' in bpy.data.objects:
+                    bpy.data.objects.remove(bpy.data.objects['temp_object'], do_unlink=True)
+                    bpy.data.meshes.remove(bpy.data.meshes['temp_mesh'], do_unlink=True)
+                    if 'temp_material' in bpy.data.materials:
+                        bpy.data.materials.remove(bpy.data.materials['temp_material'], do_unlink=True)
+                else:
+                    bpy.data.materials.remove(bpy.data.materials['temp_material'], do_unlink=True)
+        else:
+            print("Required filetype for object is \".obj\".")
+
+        return {'FINISHED'}
+
+class DATAPIPE_OT_Append_object_data(bpy.types.Operator):
+
+    bl_idname = 'datapipe.append_object_data'
+    bl_label = 'Append object to pipeline'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        object_config = config_module.input_storage.config_dict['objects'] #Get object config
+        objects_list = object_config['objects_list']
+
+        #User inputs
+        object_filepath = Path(bpy.path.abspath(context.scene.object_path)).resolve()
+        object_scale = context.scene.object_scale
+        object_instances_max = context.scene.object_instances_max
+        object_instances_min = context.scene.object_instances_min
+
+        objects_list.append({'filepath': object_filepath, 'scale': object_scale, 'max': object_instances_max, 'min': object_instances_min}) #Append user input to config dict
+
+        if 'temp_object' in bpy.data.objects.keys(): #Remove object data
+            bpy.data.objects.remove(bpy.data.objects['temp_object'], do_unlink=True)
+            bpy.data.materials.remove(bpy.data.materials['temp_material'], do_unlink=True)
+            bpy.data.meshes.remove(bpy.data.meshes['temp_mesh'], do_unlink=True)
+
+        print("Object config after appending:\n{}\n".format(config_module.input_storage.config_dict['objects']))
+
+        print("__file__: {}".format(__file__))
+        return {'FINISHED'}
+
+
+class DATAPIPE_OT_Remove_last_object_data(bpy.types.Operator):
+
+    bl_idname = 'datapipe.remove_last_object_data'
+    bl_label = 'Remove last'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        object_config = config_module.input_storage.config_dict['objects']
+        object_list = object_config['objects_list']
+
+        if len(object_list) > 0: #Check if any objects in list
+            del object_list[-1] #Remove last object
+
+        return {'FINISHED'}
+
 
 ############# CAMERA OPERATORS #############
 class DATAPIPE_OT_Append_camera_pose(bpy.types.Operator):
@@ -102,6 +219,7 @@ class DATAPIPE_OT_Remove_camera_pose(bpy.types.Operator):
 
     bl_idname = 'datapipe.remove_camera_pose'
     bl_label = 'Undo last'
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -174,22 +292,6 @@ class DATAPIPE_OT_Preview_camera_pose(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class DATAPIPE_OT_Store_object_path(bpy.types.Operator):
-
-    bl_idname = 'datapipe.store_object_path'
-    bl_label = 'Append object to pipeline'
-
-    def execute(self, context):
-
-        object_filepath = context.scene.object_filepath
-
-        #Append to a list or something
-
-        ###################################
-        # DO SOMETHING WITH THE PATH HERE #
-        ###################################
-        return {'FINISHED'}
-
 class DATAPIPE_OT_Save_pipeline_info(bpy.types.Operator):
 
     bl_idname = 'datapipe.save_pipeline_info'
@@ -226,34 +328,66 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
             bpy.data.cameras.remove(bpy.data.cameras['temp_cam'], do_unlink=True)
         
         if 'temp_object' in bpy.data.objects.keys(): #Remove object preview before running the pipeline
-            bpy.data.objects.remove(bpy.data.objects['temp_object'], do_unlink=True)
             bpy.data.materials.remove(bpy.data.materials['temp_material'], do_unlink=True)
+            bpy.data.objects.remove(bpy.data.objects['temp_object'], do_unlink=True)
+            bpy.data.meshes.remove(bpy.data.meshes['temp_mesh'], do_unlink=True)
+        
+        if 'temp_collection' in bpy.data.collections.keys(): #Remove collections preview before running the pipeline
+            bpy.data.collections.remove(bpy.data.collections['temp_collection'], do_unlink=True)
 
         # Load all information from GUI to config dict
         config_module.input_storage.write_to_config_dict(context)
 
         ################### PIPELINE FROM HERE ON OUT ###################
-        print("\nPIPELINE RUN INITIATED\n")
+        print("\n###################\nPIPELINE RUN INITIATED\n###################\n")
         start_time = time.time()
 
         config = config_module.input_storage.config_dict
 
         camera = BlendCamera(camera_name='pipe_cam',config=config)
 
+        renderer = Renderer(camera=camera)
+
+        object_manager = ObjectManager(config=config)
+
         loop_finished = False
-        i = 0
-        while not loop_finished and i < 20:
 
-            scene = BlendScene(config=config, camera=camera)
-            i+=1
+        while not loop_finished:
             
-            for render in range(scene.renders_for_scene):
+            #Prep simulation goes here.
 
-                print("Rendering... Scene {} Render {}".format(scene.scene_number, render+1))
+            scene = BlendScene(config=config, camera=camera, object_importer=object_manager)
+
+            object_manager.import_objects()
+
+            object_manager.create_initial_positions(scene=scene)
+
+            #Simulation goes here
+            simulation = Simulation(sim_end=400)
+            simulation.run_loop() #Loop physics simulation
+            simulation.apply_simulated_transforms(object_manager=object_manager)
+
+            #Object transformation applied after simulation
+            print("++++++ Checkpoint {}".format(scene.scene_name))
+            
+            for render in range(1,scene.renders_for_scene+1):
+                renderer.set_output_paths(scene=scene, render_num=render)
+
+                camera.move(curr_render=render)
+
+                #Render scene goes here
+
+                print("++++++ Checkpoint Render {}".format(render))
+            
             loop_finished = scene.last_scene
+            print("++++++ Checkpoint {}".format('Loop finished'))
+            #object_manager.delete_all_objects()
+
             del scene
 
-
+        BlendScene.reset_scene_number()
+        config_module.input_storage.reset_config_dict()
+        print("After reseting scene class, scene number is: {}".format(BlendScene.scene_num))
         end_time = time.time()
 
         print("##################\n# Timing results #\n# Run time: {:2.2f} #\n##################\n".format(end_time-start_time))
@@ -265,7 +399,9 @@ classes = [
            DATAPIPE_OT_Set_up_Scene,
            DATAPIPE_OT_Load_input_file,
            DATAPIPE_OT_Import_dropzone_object,
-           DATAPIPE_OT_Store_object_path,
+           DATAPIPE_OT_Preview_object,
+           DATAPIPE_OT_Append_object_data,
+           DATAPIPE_OT_Remove_last_object_data,
            DATAPIPE_OT_Preview_camera_pose,
            DATAPIPE_OT_Append_camera_pose,
            DATAPIPE_OT_Remove_camera_pose,

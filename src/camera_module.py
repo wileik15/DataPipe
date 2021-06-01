@@ -1,6 +1,7 @@
 import bpy
-from .projector import Projector
+from .projector_module import Projector
 import random
+import copy
 
 
 class BlendCamera:
@@ -13,16 +14,14 @@ class BlendCamera:
         self.name = camera_name
         
         self.is_structured_light = self.camera_config["is_structured_light"]
+        
         self.pose_list = self.camera_config["wrld2cam_pose_list"]
+        self.pose_list_copy = copy.copy(self.pose_list)
 
         self.blend_cam_obj, self.blend_cam_data = self.import_camera()
 
         if self.is_structured_light:
             self.projector = Projector(self, config=config)
-        
-        #Move to first pose
-        self.move()
-        
 
 
     def import_camera(self):
@@ -41,29 +40,36 @@ class BlendCamera:
         
 
 
-    def get_random_pose_from_list(self):
+    def get_random_pose_from_list(self, curr_render: int):
         """
         Selects a random pose from camera pose list.
 
         Returns random tansformation numpy matrix.
         """
-        
-        poses = self.pose_list
+        if curr_render == 1:
+            print("\n-- New render sequence --")
+            self.pose_list_copy = copy.copy(self.pose_list)
 
         #Pick random index of pose list
-        index = random.randint(a=0, b=len(poses)-1)
-        print("Camera random pos: {}".format(poses[index]))
+        index = random.randint(a=0, b=len(self.pose_list_copy)-1)
 
-        return poses[index]
+        print("Unique camera poses left: {}".format(len(self.pose_list_copy)))
+        pose = self.pose_list_copy.pop(index)
+
+        print("Camera random pos: {}".format(pose))
+
+        return pose
     
-    def move(self):
+    def move(self, curr_render: int):
         """
         moves camera object to random position.
         """
         print("\n###### MOVING CAMERA ######")
 
         #Sample random pose from input list
-        rand_pose = self.get_random_pose_from_list()
+        print("\n------------\n")
+        rand_pose = self.get_random_pose_from_list(curr_render=curr_render)
+        print("\n------------\n")
         
         self.blend_cam_obj.location = rand_pose['location']
         self.blend_cam_obj.rotation_quaternion = rand_pose['rotation']

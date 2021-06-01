@@ -33,6 +33,9 @@ class input_storage:
                     'objects': {
                         'objects_list':[]
 
+                    },
+                    'output': {
+                        'path': ''
                     }
 
     }
@@ -62,13 +65,16 @@ class input_storage:
                                 'num_renders': 1,
                                 'max_renders_per_scene': 1,
                                 'min_renders_per_scene': 1,
-                                'drop_zone_loc': [],
+                                'drop_zone_loc': [0, 0, 2],
                                 'drop_zone_scale': [0.5, 0.5, 0.5]
 
                             },
                             'objects': {
                                 'objects_list':[]
 
+                            },
+                            'output': {
+                                'path': ''
                             }
 
             }
@@ -78,10 +84,11 @@ class input_storage:
 
         config = cls.config_dict
 
-        camera_config = config['camera']
-        projector_config = config['projector']
         scene_config = config['scene']
         objects_config = config['objects']
+        camera_config = config['camera']
+        projector_config = config['projector']
+        output_config = config['output']
 
         #Scene inputs
         scene_config['num_renders'] = context.scene.num_renders
@@ -89,34 +96,27 @@ class input_storage:
         scene_config['min_renders_per_scene'] = context.scene.min_renders_per_scene
 
         #Drop zone inputs
-        print("\n########################\nTrying to store dropzone data:")
-        drop_zone = bpy.data.objects['drop_zone']
-        print("Dropzone object name: {}".format(drop_zone.name))
-        bpy.ops.object.select_all(action='DESELECT')
+        drop_zone = bpy.data.objects['drop_zone'] #Get blender object
+
+        bpy.ops.object.select_all(action='DESELECT') #Deselect all object in blender scene
+
         if drop_zone.select_get() is False:
-            print("drop_zone.select_get is False")
-            drop_zone.select_set(True)
-            print("----> Now it's True")
+            drop_zone.select_set(True) #Select dropzone object
 
-        print("view layer objects: \n{}\n".format(list(bpy.context.view_layer.objects)))
-        bpy.context.view_layer.objects.active = drop_zone
-        #bpy.ops.object.transform_apply(location = False, scale = True, rotation = False)
-        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = drop_zone #Set to active object
 
+        bpy.ops.object.select_all(action='DESELECT') #Deselect all object after
+
+        #Store object data in config
         scene_config['drop_zone_loc'] = list(bpy.data.objects['drop_zone'].location)
         scene_config['drop_zone_scale'] = list(bpy.data.objects['drop_zone'].scale)
-
-        print("From object:\n-- Location of dropzone: {}\n-- Scale of drop zone{}".format(list(bpy.data.objects['drop_zone'].location), list(bpy.data.objects['drop_zone'].scale)))
-        print("From dict:\n-- Location of dropzone: {}\n-- Scale of drop zone{}".format(scene_config['drop_zone_loc'], scene_config['drop_zone_scale']))
-        print("\n###########################\nScene config is\n{}\nAFTER SAVING DROPZONE\n###########################\n".format(scene_config))
-
 
         #Camera intrinsics 
         camera_config['focal_length'] = context.scene.camera_focal_length
         camera_config['sensor_width'] = context.scene.camera_sensor_width
         camera_config['resolution'] = [context.scene.camera_resolution_height, context.scene.camera_resolution_width]
         camera_config['is_structured_light'] = context.scene.is_structured_light
-
+        
         #Projector intrinsics
         projector_config['focal_length'] = context.scene.projector_focal_length
         projector_config['sensor_width'] = context.scene.projector_sensor_width
@@ -131,6 +131,10 @@ class input_storage:
         
         projector_config['proj2cam_pose'] = {'rotation': rot, 'location': loc}
 
+        #Output
+        output_config['path'] = utility_fuctions.PathUtility.get_pipeline_run_output_path(context.scene.pipeline_output_path)
+
+        print("Checpoint print config dict after run")
         print(cls.config_dict)
     
     @classmethod
@@ -144,6 +148,7 @@ class input_storage:
         objects_config = config['objects']
         camera_config = config['camera']
         projector_config = config['projector']
+        output_config = config['output']
 
         #Set scene variables
         context.scene.num_renders = scene_config['num_renders']
@@ -158,7 +163,9 @@ class input_storage:
             print("\n##### Inside set_input_panel_vars_from_dict")
             bpy.ops.mesh.primitive_cube_add()
             drop_zone = bpy.context.active_object
+            mesh_name = drop_zone.name
             drop_zone.name = 'drop_zone'
+            bpy.data.meshes[mesh_name].name = 'drop_zone_mesh'
             drop_zone.location = scene_config['drop_zone_loc']
             drop_zone.scale = scene_config['drop_zone_scale']
             print("drop_zone from dict: \nlocation: {}\nscale: {}".format(scene_config['drop_zone_loc'], scene_config['drop_zone_scale']))
@@ -169,9 +176,6 @@ class input_storage:
             bpy.context.view_layer.objects.active = drop_zone
             bpy.ops.object.select_all(action='DESELECT')
 
-
-        #Set objects variables
-        #Something is going to be here
 
         #Set camera variables
         context.scene.camera_focal_length = camera_config['focal_length']

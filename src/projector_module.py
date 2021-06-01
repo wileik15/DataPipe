@@ -1,6 +1,8 @@
 import os
 import bpy
 import numpy as np
+from pathlib import Path
+
 from . import utility_fuctions
 from . import pattern_generator
 
@@ -27,14 +29,13 @@ class Projector:
         #Generate patterns if they dont exist
         pattern_generator.PatternGenerator.generate_fringe_patterns(self.pattern_shape)
         
-        #self.proj2cam_rotation_quat, self.proj2cam_translation = utility_fuctions.transformation_matrix_to_quat_and_translation(self.projector_config["proj2cam_pose"])
         self.cam2proj_rot = self.projector_config['proj2cam_pose']['rotation']
         self.cam2proj_loc = self.projector_config['proj2cam_pose']['location']
 
-        print("\n### Projector pose ###\nQuaternions: {}\nTranslation: {}\n".format(self.cam2proj_rot, self.cam2proj_loc))
+        print("\n### Projector pose ###\n--> Quaternions: {}\n--> Translation: {}\n".format(self.cam2proj_rot, self.cam2proj_loc))
 
         self.pattern_names_list = self.generate_pattern_names()
-        self.pattern_filepath = utility_fuctions.PathUtility.get_patterns_path()
+        self.pattern_filepath = Path(utility_fuctions.PathUtility.get_patterns_path())
         
         self.camera = blend_camera #BlendCamera object
 
@@ -46,7 +47,7 @@ class Projector:
 
     def generate_pattern_names(self):
         """
-        Generate a list of pattern names to be used in creation of viwlayers
+        Generate a list of pattern names to be used in creation of viewlayers
         """
 
         names = []
@@ -68,11 +69,18 @@ class Projector:
         
         #Set parent collection to be scene master collection
         parent_collection = bpy.context.scene.collection
+        
+        view_layers = bpy.context.scene.view_layers
+        print(list(view_layers))
+        if not len(view_layers) == 1:
+            raise Exception('Blender file can not contain more than one view layer when running the pipeline\nBlender file currently contains {} view layers'.format(len(view_layers)))
+
+        bpy.context.view_layer.name = 'native_layer' #Rename native view layer
 
         #Seperate native lighting from projector lighting
         lights_in_scene = []
         for light in bpy.data.lights:
-            print("Light {} is used: {}".format(light.name,bpy.data.lights[light.name].users))
+
             if bpy.data.lights[light.name].users:
                 lights_in_scene.append(light.name)
 
@@ -168,10 +176,14 @@ class Projector:
 
             light_obj.name = pattern_name #Rename light to be same as associated view layer and collection
 
+            #Set up the node tree for the projector
             self.create_projector_node_tree(light=light)
 
             
     def create_projector_node_tree(self, light):
+        '''
+        Creates the node tree for the light source, such that it projects the pattern as a projector
+        '''
 
         light.use_nodes = True
         node_tree = light.node_tree
@@ -226,7 +238,7 @@ class Projector:
 
         #Collect image from /utility/SL_patterns folder
         pattern_filename = '{}x{}_{}.jpg'.format(self.pattern_shape[0],self.pattern_shape[1], light.name) #Filename of pattern stored in
-        pattern_img = bpy.data.images.load(filepath=os.path.join(self.pattern_filepath,pattern_filename))
+        pattern_img = bpy.data.images.load(filepath=str(Path.joinpath(self.pattern_filepath,Path(pattern_filename))))
         texture_img_node.image = pattern_img #Set image to be projected from node
 
         #Emission node
@@ -239,4 +251,3 @@ class Projector:
         #Light output node
         light_out_node.location = (1400, 0)
         light_out_node.name = "light_output_{}".format(light.name)
-

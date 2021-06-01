@@ -1,7 +1,21 @@
 
 import numpy as np
+import math
 import utility_fuctions
+import random
 
+l = ['this', 'list', 'will', 'be', 'poped']
+
+index = random.randint(a=0, b = len(l)-1)
+print("Index to pop: {}".format(index))
+print("length of list before pop: {}".format(len(l)))
+var = l.pop(index)
+print("length of list after pop: {}".format(len(l)))
+print('poped value: {}'.format(var))
+print(l)
+
+
+'''
 def print_matrix(matrix):
     m = np.asarray(matrix)
     shape = matrix.shape
@@ -49,3 +63,4 @@ print("rot")
 print_matrix(rot2)
 print("Det = {}\n".format(np.linalg.det(rot2)))
 
+'''
