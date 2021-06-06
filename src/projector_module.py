@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 
 from . import utility_fuctions
-from . import pattern_generator
+from .pattern_generator import PatternGenerator
 
 print("########## Projector start ##########")
 
@@ -18,23 +18,20 @@ class Projector:
 
         self.projector_config = config['projector']
 
-        self.num_patterns = 2
-        self.num_phase_shifts = 3
-
         #Collect intrinsics from config
         self.pattern_shape = self.projector_config['resolution']
         self.focal_length = self.projector_config['focal_length']
         self.sensor_size_horizontal = self.projector_config['sensor_width']
 
         #Generate patterns if they dont exist
-        pattern_generator.PatternGenerator.generate_fringe_patterns(self.pattern_shape)
+        pattern_generator = PatternGenerator(resolution=self.pattern_shape)
         
         self.cam2proj_rot = self.projector_config['proj2cam_pose']['rotation']
         self.cam2proj_loc = self.projector_config['proj2cam_pose']['location']
 
         print("\n### Projector pose ###\n--> Quaternions: {}\n--> Translation: {}\n".format(self.cam2proj_rot, self.cam2proj_loc))
 
-        self.pattern_names_list = self.generate_pattern_names()
+        self.pattern_names_list = pattern_generator.pattern_names
         self.pattern_filepath = Path(utility_fuctions.PathUtility.get_patterns_path())
         
         self.camera = blend_camera #BlendCamera object
@@ -42,24 +39,6 @@ class Projector:
         self.create_collections_and_viewlayers()
         self.import_light_sources()
         self.connect_collections_and_viewlayers()
-        
-        
-
-    def generate_pattern_names(self):
-        """
-        Generate a list of pattern names to be used in creation of viewlayers
-        """
-
-        names = []
-
-        for pattern_num in range(self.num_patterns): #Loop number of patterns
-
-            for shift_num in range(self.num_phase_shifts): #Loop number of shifts for each pattern
-                
-                name = "p{}s{}".format(pattern_num+1, shift_num+1) #Create name for pattern
-
-                names.append(name) #Store name in list 
-        return names
 
     
     def create_collections_and_viewlayers(self):

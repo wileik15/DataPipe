@@ -27,7 +27,6 @@ bl_info = {
 import bpy
 from . import pipeline_panel
 from . import pipeline_op
-from .src.config_module import input_storage
 
 
 
@@ -45,10 +44,6 @@ if locals().get('loaded'):
     del reload, modules
 
 loaded = True
-
-
-#Reset dict every time addon is loaded
-input_storage.reset_config_dict()
 
 def register():
     try: 

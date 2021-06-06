@@ -1,15 +1,14 @@
 print("############ pipeline_op Start ############")
 from pathlib import Path
-import types
 import bpy
-from bpy.types import Mesh, Scene
-from .src import config_module
 from .src import utility_fuctions
+from .src import config_module
 from .src.camera_module import BlendCamera
 from .src.scene_module import BlendScene
 from .src.objects_module import ObjectManager
 from .src.render_module import Renderer
 from .src.simulation_module import Simulation
+from .src.structured_light_module import Algorithm
 import numpy as np
 import time
 
@@ -152,10 +151,12 @@ class DATAPIPE_OT_Append_object_data(bpy.types.Operator):
         #User inputs
         object_filepath = Path(bpy.path.abspath(context.scene.object_path)).resolve()
         object_scale = context.scene.object_scale
+        object_mass = context.scene.object_mass
+        object_collision_shape = context.scene.object_collision_shape
         object_instances_max = context.scene.object_instances_max
         object_instances_min = context.scene.object_instances_min
 
-        objects_list.append({'filepath': object_filepath, 'scale': object_scale, 'max': object_instances_max, 'min': object_instances_min}) #Append user input to config dict
+        objects_list.append({'filepath': object_filepath, 'scale': object_scale, 'mass': object_mass, 'collision_shape': object_collision_shape, 'max': object_instances_max, 'min': object_instances_min}) #Append user input to config dict
 
         if 'temp_object' in bpy.data.objects.keys(): #Remove object data
             bpy.data.objects.remove(bpy.data.objects['temp_object'], do_unlink=True)
@@ -356,7 +357,7 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
             
             #Prep simulation goes here.
 
-            scene = BlendScene(config=config, camera=camera, object_importer=object_manager)
+            scene = BlendScene(config=config, camera=camera, object_manager=object_manager)
 
             object_manager.import_objects()
 
@@ -371,22 +372,32 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
             print("++++++ Checkpoint {}".format(scene.scene_name))
             
             for render in range(1,scene.renders_for_scene+1):
+                
                 renderer.set_output_paths(scene=scene, render_num=render)
 
                 camera.move(curr_render=render)
 
+                scene.write_output_info_to_scene_dict(render_num=render, camera=camera, object_manager=object_manager)
+
                 #Render scene goes here
+                print("\nRENDERING {} CAMERA ANGLE {}/{}".format(scene.scene_name, render, scene.renders_for_scene))
+                renderer.render_results()
+
+                if camera.is_structured_light:
+                    SL_algorithm = Algorithm(renderer=renderer, pattern_names=camera.pattern_names)
 
                 print("++++++ Checkpoint Render {}".format(render))
             
+            scene.write_scene_dict_to_file()
+
             loop_finished = scene.last_scene
             print("++++++ Checkpoint {}".format('Loop finished'))
-            #object_manager.delete_all_objects()
 
             del scene
 
         BlendScene.reset_scene_number()
         config_module.input_storage.reset_config_dict()
+
         print("After reseting scene class, scene number is: {}".format(BlendScene.scene_num))
         end_time = time.time()
 

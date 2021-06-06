@@ -1,19 +1,23 @@
 
 import numpy as np
 import math
-import utility_fuctions
 import random
 
-l = ['this', 'list', 'will', 'be', 'poped']
+dict = {'scene1':{'render1':{'cam_pos': [[1,2,3],[4,5,6],[7,8,9]]}
+}
+}
+appedning_dict = {'object1':{'pos': 'matrix here',
+                             'index': 1,
+                             'filename': 'drawing'
+                             },
+                  'object2':{'pos': 'matrix here',
+                             'index': 2,
+                             'filename': 'drawing1'
+                             }
+                 }
 
-index = random.randint(a=0, b = len(l)-1)
-print("Index to pop: {}".format(index))
-print("length of list before pop: {}".format(len(l)))
-var = l.pop(index)
-print("length of list after pop: {}".format(len(l)))
-print('poped value: {}'.format(var))
-print(l)
-
+dict['scene1']['render1'] = appedning_dict
+print(dict)
 
 '''
 def print_matrix(matrix):

@@ -1,7 +1,6 @@
 from os import name
 import bpy
 import numpy as np
-from .src.config_module import input_storage
 
 print("############ pipeline_panel Start ############")
 
@@ -107,6 +106,14 @@ class DATAPIPE_PT_objects_panel(bpy.types.Panel):
 
         row = left_col.row()
         row.alignment = 'RIGHT'
+        row.label(text='Approx. mass')
+
+        row = left_col.row()
+        row.alignment = 'RIGHT'
+        row.label(text='Collision shape')
+
+        row = left_col.row()
+        row.alignment = 'RIGHT'
         row.label(text='Instances in scene Max')
 
         row = left_col.row()
@@ -115,6 +122,12 @@ class DATAPIPE_PT_objects_panel(bpy.types.Panel):
 
         row = right_col.row()
         row.prop(context.scene, 'object_scale')
+
+        row = right_col.row()
+        row.prop(context.scene, 'object_mass')
+
+        row = right_col.row()
+        row.prop(context.scene, 'object_collision_shape')
 
         row = right_col.row()
         row.prop(context.scene, 'object_instances_max')
@@ -350,8 +363,21 @@ def register():
     bpy.types.Scene.object_scale = bpy.props.FloatProperty(
         name='',
         soft_min=0,
+        precision=3,
         description='Scaling of the object. Used to ensure that the 3D model\'s units are equal to scene units',
         default=1)
+    bpy.types.Scene.object_mass = bpy.props.FloatProperty(
+        name='',
+        soft_min=0,
+        default=0.5,
+        unit='MASS',
+        precision=3,
+        description='Approximate object mass, used by the simulated physics')
+    bpy.types.Scene.object_collision_shape = bpy.props.EnumProperty(
+        name='',
+        items=[('MESH', 'Mesh', ''),
+               ('CONVEX_HULL', 'Convex hull', '')],
+        description='Object\'s collision shape for physics simulation')
     bpy.types.Scene.object_instances_max = bpy.props.IntProperty(
         name='',
         soft_min=0,
@@ -459,6 +485,8 @@ def unregister():
     del bpy.types.Scene.object_scale
     del bpy.types.Scene.object_instances_max
     del bpy.types.Scene.object_instances_min
+    del bpy.types.Scene.object_mass
+    del bpy.types.Scene.object_collision_shape
 
     #################################
     ####### CAMERA PROPERTIES #######

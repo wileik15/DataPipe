@@ -3,6 +3,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 from numpy import pi
+import copy
+
 from . import utility_fuctions
 
 
@@ -14,8 +16,35 @@ class PatternGenerator:
 
     shifts = 3
 
-    @classmethod
-    def generate_fringe_patterns(cls, resolution):
+    def __init__(self, resolution: list):
+
+        self.resolution = np.asarray(resolution)
+
+        self.patterns_list = []
+
+        self.num_phase_shifts = 3
+
+        self.generate_fringe_pattern(self.resolution, periods=8)
+        self.generate_fringe_pattern(self.resolution, periods=7)
+
+        self.store_patterns()
+
+        self.pattern_names = self.get_pattern_names_list()
+
+
+    def get_pattern_names_list(self):
+        """
+        Generate a list of pattern names to be used in creation of viewlayers
+        """
+
+        names = []
+
+        for pattern in self.patterns_list:
+            names.append(pattern['name'])
+        return names
+
+
+    def generate_fringe_pattern(self, resolution: list, periods: int):
         """
         Generates three monochrome fringe patterns for structured light scanner
 
@@ -26,69 +55,63 @@ class PatternGenerator:
         :param periods: number of full periods along image width
         :type periods: int.
         """
-        print("..... Generating patterns, please hold wait")
+        print("..... Generating patterns")
 
-        height = resolution[0]
-        width = resolution[1]
+        resolution = np.asarray(resolution)
+        print("Resolution: {}".format(resolution))
+        height, width = resolution[0], resolution[1]
+            
+        periods = periods
+        shifts = self.num_phase_shifts
+        
+        delta_x= 2*pi*periods/width
+        x = np.arange(0,2*pi*periods,delta_x)
+        
+        phi = 2*pi/shifts
+        
+        canvas = np.ones((height,width,shifts))
+        waves = np.transpose(255 * (0.6 + 0.4 * np.cos(np.array([x, x + phi, x - phi]))))
+        patterns = canvas*waves
 
-        if not cls.pattern_exists(height, width):
-            
-            periods1, periods2 = 8, 7
-            shifts = cls.shifts
-            
-            delta_x1, delta_x2 = 2*pi*periods1/width, 2*pi*periods2/width
-            x_1, x_2 = np.arange(0,2*pi*periods1,delta_x1), np.arange(0,2*pi*periods2,delta_x2)
-            
-            phi = 2*pi/shifts
-            
-            canvas = np.ones((height,width,shifts*2))
-            waves = np.transpose(255 * (0.6 + 0.4 * np.cos(np.array([x_1, x_1 + phi, x_1 - phi, x_2, x_2 + phi, x_2 - phi]))))
-            patterns = canvas*waves
+        print("Canvas shape: {}".format(canvas.shape))
+        print("Waves shape: {}".format(waves.shape))
 
-            cls.store_patterns(patterns)
-    
-    
-    @staticmethod
-    def store_patterns(patterns):
+        print("Shifts: {}".format(shifts))
+        print("Patterns shape: {}\n-------------".format(patterns.shape))
+
+        for shift in range(shifts):
+            print("This is shift {}".format(shift))
+            name = 'p{}s{}'.format(periods, shift+1)
+            print("\nPattern: {}\nShape: {}\n---------------".format(name, patterns[:,:,shift].shape))
+            pattern = copy.copy(patterns[:,:, shift])
+            
+            pattern_dict = {'name': name,
+                            'pattern':pattern}
+
+            self.patterns_list.append(pattern_dict)
+
+
+    def store_patterns(self):
         """
         Stores generated pattern images in utility folder
-
-        :param patterns: matrix containing all patterns
-        :type patterns: numpy.ndarray
         """
 
-        height, width = len(patterns[:,0,0]), len(patterns[0,:,0])
-        shift = 1
+        patterns_folder_path = Path(utility_fuctions.PathUtility.get_patterns_path())
 
-        patterns_folder_path = utility_fuctions.PathUtility.get_patterns_path()
+        for pattern in self.patterns_list:
 
-        for i in range(0,int(len(patterns[0,0,:])/2)):
-            filename1 = "{}x{}_p1s{}.jpg".format(height, width, shift)
-            filename2 = "{}x{}_p2s{}.jpg".format(height, width, shift)
+            height, width = pattern['pattern'].shape
+
+            filename = "{}x{}_{}.jpg".format(height, width, pattern['name'])
+
+            Path(filename)
+            save_path = str(Path.joinpath(patterns_folder_path, filename))
+
+            pattern['filename'] = save_path
             
-            cv2.imwrite("{}{}".format(patterns_folder_path, filename1), patterns[:,:,i])
-            cv2.imwrite("{}{}".format(patterns_folder_path, filename2), patterns[:,:,i+3])
-            
-            shift += 1
+            if not os.path.exists(save_path): #Check if the pattern already exist
+                cv2.imwrite(save_path, pattern['pattern'])
 
-
-    @staticmethod
-    def pattern_exists(height, width):
-        """
-        Checks for existing patterns of same resolution,
-        returns bool.
-
-        :param height: Height of pattern image in pixels
-        :type height: int
-        :param width: Width of pattern image in pixels
-        :type width: int
-        """
-        patterns_folder_path = utility_fuctions.PathUtility.get_patterns_path()
-        
-        path = Path("{}{}x{}_p1s1.jpg".format(patterns_folder_path, height, width))
-        print("\n# Pattern file path checked for existence:\n{}\n".format(path.name))
-
-        return os.path.exists(path.name)
 
 
 

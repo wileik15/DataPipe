@@ -7,6 +7,9 @@ from scipy.spatial.transform import Rotation
 import os
 from pathlib import Path
 
+from .scene_module import BlendScene
+from .config_module import input_storage
+
 class PathUtility:
 
     @staticmethod
@@ -192,6 +195,7 @@ def initialize_pipeline_environment():
     -Rendering engine is set to cycles and gpu-compute.
     -Scene units are set to metric.
     """
+    print("###### INITIALIZING PIPELINE ######")
 
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.context.scene.cycles.device = 'GPU'
@@ -200,16 +204,26 @@ def initialize_pipeline_environment():
     bpy.context.scene.unit_settings.length_unit = 'METERS'
     bpy.context.scene.unit_settings.system_rotation = 'RADIANS'
     bpy.context.scene.unit_settings.mass_unit = 'KILOGRAMS'
-    
-    
+
+    print("BlendScene number: {}".format(BlendScene.scene_num))
+    BlendScene.reset_scene_number()
+    print("BlendScene number: {}".format(BlendScene.scene_num))
+    input_storage.reset_config_dict()
+
+
     #Make all existing meshes be rigid bodies.
     for obj in bpy.data.objects:
         print("---------")
         print("Object name {}".format(obj.name))
         print("Object type {}".format(type(obj)))
+
+        obj.pass_index = 0
         
         bpy.context.view_layer.objects.active = obj
         print("Object type: {}".format(str(bpy.context.object.type)))
         if bpy.context.object.type == 'MESH':
             bpy.ops.rigidbody.object_add(type='PASSIVE')
             bpy.context.object.rigid_body.collision_shape = 'MESH'
+
+
+            obj.rigid_body.collision_margin = 0.001

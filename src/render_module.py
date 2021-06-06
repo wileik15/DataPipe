@@ -1,6 +1,6 @@
-from os import link
-from pathlib import Path
 import bpy
+from pathlib import Path
+import time
 
 from .scene_module import BlendScene
 
@@ -14,6 +14,8 @@ class Renderer:
         self.view_layers_list = camera.projector.pattern_names_list
 
         self.output_nodes_list = self.create_render_node_tree()
+
+        self.render_path = ''
 
 
     def create_render_node_tree(self):
@@ -53,17 +55,16 @@ class Renderer:
         rgb_out_node.format.file_format = 'PNG'
         rgb_out_node.location = x_coord, y_coord
         rgb_out_node.inputs[0].name = 'rgb_image'
-        print("RGB out inputs: {}".format(list(rgb_out_node.inputs)))
         
         out_node_list.append(rgb_out_node) #Add rgb output node to out_node_list
 
         rgb_link = links.new(input=rgb_out_node.inputs[0], output=render_node.outputs[0]) #Link to render layer node
+        '''
         to_socket = rgb_link.to_socket
         from_socket = rgb_link.from_socket
         print("To socket name: {}\nFrom socket name: {}".format(to_socket.name, from_socket.name))
         to_socket.name = 'RGB_image'
-        print("To socket name after: {}\n".format(to_socket.name))
-
+        '''
         y_coord += delta_y
 
         #Depth image node
@@ -121,7 +122,6 @@ class Renderer:
                 out_node.location = x_coord + delta_x, y_coord
                 out_node.format.file_format = 'PNG'
                 out_node.inputs[0].name = layer_name
-                out_node.format.color_mode = 'BW'
 
                 out_node_list.append(out_node)
 
@@ -141,10 +141,17 @@ class Renderer:
         render_path.mkdir()
         render_path = str(render_path)
 
+        self.render_path = render_path
+
         for out_node in self.output_nodes_list:
-            
-            out_node.base_path = render_path #Set render path for nodes
+
+            path_string = "{}/{}".format(render_path, out_node.inputs[0].name)
+            path = Path(path_string)
+            out_node.base_path =  str(path) #Set render path for nodes
+        
     
     def render_results(self):
-
+        render_start = time.time()
         bpy.ops.render.render(use_viewport=True)
+        render_end = time.time()
+        print("Rendertime: {:.4f}".format(render_end-render_start))

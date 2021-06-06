@@ -5,9 +5,7 @@ import numpy as np
 import random
 import copy
 
-from .scene_module import BlendScene
-
-from .config_module import input_storage
+from .camera_module import BlendCamera
 
 
 class BlendObject:
@@ -17,7 +15,11 @@ class BlendObject:
         #Collect input data
         self.filepath = object_info['filepath']
         self.scale = object_info['scale']
+        self.mass = object_info['mass']
+        self.collision_shape = object_info['collision_shape']
         self.index = index
+
+        #Set unique pbject name and add to collection
         self.name = 'DataPipe_object.{:04d}'.format(self.index) #Set object name
         self.objects_collection = collection
 
@@ -59,17 +61,20 @@ class BlendObject:
         mat.name = self.name
         mesh.name = self.name
 
-        #Add to remove from default collection and datapipe object collection
+        #Remove from default collection and add to datapipe object collection
         obj.users_collection[0].objects.unlink(obj)
         self.objects_collection.objects.link(obj)
 
+        #Apply object scaling
         obj.scale = (scale, scale, scale) #Set scale from user input
         bpy.ops.object.transform_apply(location=False, scale=True, rotation=False) #Apply scale to object
         
+        #Set object physics properties
         bpy.context.view_layer.objects.active = obj
         bpy.ops.rigidbody.object_add(type='ACTIVE')
-        bpy.context.object.rigid_body.collision_shape = 'MESH' # 'CONVEX_HULL' #
-        obj.rigid_body.mass = 2
+        bpy.context.object.rigid_body.collision_shape = self.collision_shape 
+        obj.rigid_body.mass = self.mass
+        obj.rigid_body.collision_margin = 0.001
 
         obj.pass_index = index #Set pass index for masked image
 
@@ -146,7 +151,7 @@ class ObjectManager:
 
             self.objects_in_scene = []
 
-    def create_initial_positions(self, scene: BlendScene):
+    def create_initial_positions(self, scene):
 
         drop_zone_loc = scene.drop_zone_location
         drop_zone_dim = scene.drop_zone_dimensions
@@ -160,10 +165,7 @@ class ObjectManager:
         max_y_coord = drop_zone_loc[1] + drop_zone_dim[1]/2 #Max y-value to place objects
         min_y_coord = drop_zone_loc[1] - drop_zone_dim[1]/2 #Min y-value to place objects
 
-        print("Placing objects at \nloc: {}\nbounds: {}".format(drop_zone_loc,drop_zone_dim))
-        print("Currently, objects in scene is:\n{}".format(self.objects_in_scene))
-
-        for obj in self.objects_in_scene:
+        for obj in self.objects_in_scene: #place objects random
             
             max_dim = max(obj.dimensions) #The object's maximal dimension (either x, y, or z direction)
 
@@ -178,13 +180,31 @@ class ObjectManager:
 
             z += delta_z + max_dim/2
 
-            print("### {} pose:\n- Before: {}".format(obj.name, obj.blend_ob.location))
-
             obj.place_ob(x=x, y=y, z=z)
 
-            print("- After: {}".format(obj.blend_ob.location))
-
             delta_z = max_dim/2
-            
+    
+    def get_objects_information_dict(self, camera: BlendCamera):
 
-            print("Object {} max dimension is: {}".format(obj.name, max_dim))
+        obj_output_list = []
+
+        for obj in self.objects_in_scene:
+
+            dict = {}
+
+            wrld2cam_transform = np.asarray(camera.blend_cam_obj.matrix_world)
+
+            wrld2obj_transform = np.asarray(obj.blend_ob.matrix_world)
+            print("Camera transform matrix apllied to {}:\n{}\n".format(obj.name, wrld2cam_transform))
+            cam2obj_pose = np.matmul(np.linalg.inv(wrld2cam_transform), wrld2obj_transform)
+
+            dict = {'name': obj.name,
+                    'filename': obj.filename,
+                    'mask_index': obj.index,
+                    'cam2obj_pose': cam2obj_pose}
+
+            obj_output_list.append(dict)
+
+        print("\n\nObject list is:\n{}\n\n".format(obj_output_list))
+
+        return obj_output_list

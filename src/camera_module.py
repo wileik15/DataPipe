@@ -20,8 +20,11 @@ class BlendCamera:
 
         self.blend_cam_obj, self.blend_cam_data = self.import_camera()
 
+        bpy.context.scene.camera = self.blend_cam_obj
+
         if self.is_structured_light:
             self.projector = Projector(self, config=config)
+            self.pattern_names = self.projector.pattern_names_list
 
 
     def import_camera(self):
@@ -73,6 +76,9 @@ class BlendCamera:
         
         self.blend_cam_obj.location = rand_pose['location']
         self.blend_cam_obj.rotation_quaternion = rand_pose['rotation']
+
+        bpy.context.view_layer.objects.active = self.blend_cam_obj
+        bpy.ops.object.visual_transform_apply()
         
         print("in move() ---> Blender object: {}".format(self.blend_cam_obj.name))
 
