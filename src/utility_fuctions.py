@@ -194,6 +194,7 @@ def initialize_pipeline_environment():
     Setting blender variables to the required specifications for the pipeline.
     -Rendering engine is set to cycles and gpu-compute.
     -Scene units are set to metric.
+    -Native object
     """
     print("###### INITIALIZING PIPELINE ######")
 
@@ -204,10 +205,9 @@ def initialize_pipeline_environment():
     bpy.context.scene.unit_settings.length_unit = 'METERS'
     bpy.context.scene.unit_settings.system_rotation = 'RADIANS'
     bpy.context.scene.unit_settings.mass_unit = 'KILOGRAMS'
+    bpy.context.scene.world.color = (0,0,0)
 
-    print("BlendScene number: {}".format(BlendScene.scene_num))
     BlendScene.reset_scene_number()
-    print("BlendScene number: {}".format(BlendScene.scene_num))
     input_storage.reset_config_dict()
 
 

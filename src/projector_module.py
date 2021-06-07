@@ -24,14 +24,14 @@ class Projector:
         self.sensor_size_horizontal = self.projector_config['sensor_width']
 
         #Generate patterns if they dont exist
-        pattern_generator = PatternGenerator(resolution=self.pattern_shape)
+        self.pattern_generator = PatternGenerator(resolution=self.pattern_shape)
         
         self.cam2proj_rot = self.projector_config['proj2cam_pose']['rotation']
         self.cam2proj_loc = self.projector_config['proj2cam_pose']['location']
 
         print("\n### Projector pose ###\n--> Quaternions: {}\n--> Translation: {}\n".format(self.cam2proj_rot, self.cam2proj_loc))
 
-        self.pattern_names_list = pattern_generator.pattern_names
+        self.pattern_names_list = self.pattern_generator.pattern_names
         self.pattern_filepath = Path(utility_fuctions.PathUtility.get_patterns_path())
         
         self.camera = blend_camera #BlendCamera object
@@ -230,3 +230,16 @@ class Projector:
         #Light output node
         light_out_node.location = (1400, 0)
         light_out_node.name = "light_output_{}".format(light.name)
+
+    def get_projector_matrix(self):
+
+        focal_length = self.focal_length
+        sensor_width = self.sensor_size_horizontal
+
+        height_px = self.pattern_shape[0]
+        width_px = self.pattern_shape[1]
+
+        u_0 = height_px/2
+        v_0 = width_px/2
+
+        #alpha_u = 

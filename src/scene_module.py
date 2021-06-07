@@ -27,13 +27,17 @@ class BlendScene:
         if self.scene_num == 1:
             self.set_run_instance_path(config=config)
         
+        print("Getting run instance path")
         self.run_instance_path = self.get_run_instance_path()
 
+        print("Getting drop zone dimensions")
         self.drop_zone_location, self.drop_zone_dimensions = self.get_drop_zone_info(scene_config=self.scene_config)
         
+        print("Creating scene output path")
         self.output_path = Path.joinpath(Path(config['output']['path']), self.scene_name)
         self.output_path.mkdir()
 
+        print("Setting boolean for scene")
         self.last_scene = False
 
         self.total_num_renders = self.scene_config['num_renders']
@@ -54,6 +58,7 @@ class BlendScene:
 
     @classmethod
     def set_run_instance_path(cls, config):
+        print("Setting run instance path..")
         path = Path(config['output']['path'])
         path.mkdir()
         cls.run_instance_path = str(path)

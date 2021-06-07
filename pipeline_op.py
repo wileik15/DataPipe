@@ -384,7 +384,9 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
                 renderer.render_results()
 
                 if camera.is_structured_light:
-                    SL_algorithm = Algorithm(renderer=renderer, pattern_names=camera.pattern_names)
+                    SL_algorithm = Algorithm(renderer=renderer, 
+                                             pattern_names=camera.pattern_names, 
+                                             pattern_generator=camera.pattern_generator)
 
                 print("++++++ Checkpoint Render {}".format(render))
             
@@ -397,6 +399,7 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
 
         BlendScene.reset_scene_number()
         config_module.input_storage.reset_config_dict()
+
 
         print("After reseting scene class, scene number is: {}".format(BlendScene.scene_num))
         end_time = time.time()

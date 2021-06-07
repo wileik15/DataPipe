@@ -20,12 +20,12 @@ class PatternGenerator:
 
         self.resolution = np.asarray(resolution)
 
-        self.patterns_list = []
-
         self.num_phase_shifts = 3
+        self.periods = [10, 9]
 
-        self.generate_fringe_pattern(self.resolution, periods=8)
-        self.generate_fringe_pattern(self.resolution, periods=7)
+        self.patterns_list = []
+        self.generate_fringe_pattern(resolution=self.resolution, periods=self.periods[0])
+        self.generate_fringe_pattern(resolution=self.resolution, periods=self.periods[1])
 
         self.store_patterns()
 
@@ -63,14 +63,22 @@ class PatternGenerator:
             
         periods = periods
         shifts = self.num_phase_shifts
+
+        print("Image width: {}\nPeriods: {}\nShifts: {}".format(width,periods,shifts))
         
-        delta_x= 2*pi*periods/width
-        x = np.arange(0,2*pi*periods,delta_x)
+        delta_x= round(2*pi*periods/(width),ndigits=7) 
+        x = np.arange(0,2*pi*periods-delta_x,delta_x)
+        print("elements of x:\nFirst: {}\nLast: 2*pi*{}".format(x[0],x[-1]/(2*np.pi)))
+
+        print("delta x: {}".format(delta_x))
+        print("delta_x*width/2pi={}".format(delta_x*width/(np.pi*2)))
+        print("X shape: {}".format(x.shape))
         
         phi = 2*pi/shifts
         
         canvas = np.ones((height,width,shifts))
         waves = np.transpose(255 * (0.6 + 0.4 * np.cos(np.array([x, x + phi, x - phi]))))
+        print("Canvas shape:{}\nWaves shape: {}".format(canvas.shape,waves.shape))
         patterns = canvas*waves
 
         print("Canvas shape: {}".format(canvas.shape))
