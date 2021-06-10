@@ -134,8 +134,6 @@ class input_storage:
         #Output
         output_config['path'] = utility_fuctions.PathUtility.get_pipeline_run_output_path(context.scene.pipeline_output_path)
 
-        print("Checpoint print config dict after run")
-        print(cls.config_dict)
     
     @classmethod
     def set_input_panel_vars_from_dict(cls, context):
@@ -157,10 +155,12 @@ class input_storage:
         
         #Import and move dropzone in blender
         if 'drop_zone' in bpy.data.objects.keys():
+
             bpy.data.objects['drop_zone'].location = scene_config['drop_zone_loc']
             bpy.data.objects['drop_zone'].scale = scene_config['drop_zone_scale']
+
         else:
-            print("\n##### Inside set_input_panel_vars_from_dict")
+            
             bpy.ops.mesh.primitive_cube_add()
             drop_zone = bpy.context.active_object
             mesh_name = drop_zone.name
@@ -168,8 +168,7 @@ class input_storage:
             bpy.data.meshes[mesh_name].name = 'drop_zone_mesh'
             drop_zone.location = scene_config['drop_zone_loc']
             drop_zone.scale = scene_config['drop_zone_scale']
-            print("drop_zone from dict: \nlocation: {}\nscale: {}".format(scene_config['drop_zone_loc'], scene_config['drop_zone_scale']))
-
+            
             bpy.ops.object.select_all(action='DESELECT')
             if drop_zone.select_get() is False:
                 drop_zone.select_set(True)
@@ -208,12 +207,7 @@ class input_storage:
         dir_path = Path(bpy.path.abspath(dir_path)).resolve()
         filename = Path('DataPipe_input.pickle')
         
-
-        print("\n##### Inside write to pickle file ###\n-- Filepath:\n{}\n-- Filename:\n{}\n".format(dir_path, filename))
-
         path = Path.joinpath(dir_path, filename)
-
-        print("Path tried for saving pickle:\n{}\n".format(path))
 
         if utility_fuctions.file_exists(path):
 

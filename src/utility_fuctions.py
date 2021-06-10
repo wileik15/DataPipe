@@ -213,14 +213,11 @@ def initialize_pipeline_environment():
 
     #Make all existing meshes be rigid bodies.
     for obj in bpy.data.objects:
-        print("---------")
-        print("Object name {}".format(obj.name))
-        print("Object type {}".format(type(obj)))
 
         obj.pass_index = 0
         
         bpy.context.view_layer.objects.active = obj
-        print("Object type: {}".format(str(bpy.context.object.type)))
+        
         if bpy.context.object.type == 'MESH':
             bpy.ops.rigidbody.object_add(type='PASSIVE')
             bpy.context.object.rigid_body.collision_shape = 'MESH'

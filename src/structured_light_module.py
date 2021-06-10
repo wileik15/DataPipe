@@ -5,10 +5,11 @@ import cv2
 
 from .render_module import Renderer
 from .pattern_generator import PatternGenerator
+from .camera_module import BlendCamera
 
 class Algorithm:
 
-    def __init__(self, renderer: Renderer, pattern_names: list, pattern_generator: PatternGenerator):
+    def __init__(self, renderer: Renderer, pattern_names: list, pattern_generator: PatternGenerator, camera: BlendCamera):
 
         self.render_path = renderer.render_path
 
@@ -21,6 +22,15 @@ class Algorithm:
         self.phase1_img = self.phase_detection(images=self.images[:,:,:3])
         self.phase2_img = self.phase_detection(images=self.images[:,:,3:])
 
+        self.abs_phase_img = self.absolute_phase(self.phase1_img, self.phase2_img)
+
+        self.camera_matrix = np.matmul(camera.K, camera.camera_extrinsic)
+        self.projector_matrix = np.matmul(camera.projector_matrix, camera.projector_extrinsic)
+
+        self.depth_img, image = self.triangulate_depth(camera.projector.pattern_shape[1], 
+                                                       self.abs_phase_img, 
+                                                       self.camera_matrix, 
+                                                       self.projector_matrix)
     
     def get_render_out_subdirs(self, pattern_names: list):
         '''
@@ -30,18 +40,15 @@ class Algorithm:
         render_dir = Path(self.render_path)
 
         file_paths = []
-        print('\nFrom algorithm:')
-        print("Render dir:\n{}\n".format(render_dir))
 
         for pattern_name in pattern_names:
             sub_dir = Path(pattern_name)
             img_dir = Path.joinpath(render_dir,sub_dir)
 
             for file_path in img_dir.iterdir():
-                print("Iter dir Path:\n{}".format(file_path))
-                print("Suffix: {}".format(file_path.suffix))
+                
                 if file_path.suffix == '.png':
-                    print("-Filepath accepted.\n")
+                    
                     file_paths.append(str(file_path))
                     break
 
@@ -60,8 +67,6 @@ class Algorithm:
         threshold = (25**2)*num_images
         
         count = 0
-
-        print("Importing the images:\n{}".format(file_paths))
         
         for image_path in file_paths:
             
@@ -82,20 +87,27 @@ class Algorithm:
             
             count += 1
         
-        #Removing noise from unlit areas
+        #Remove unlit noisy pixels
         error_img = copy.copy(out)
         error_img = np.sum(error_img**2, axis=2)
         filter_img = np.ones_like(out[:,:,0])
         filter_img[np.where(error_img < threshold)] = None
-        print("\n-----out.shape: {}\n-----filter_img.shape: {}\n".format(out.shape, filter_img.shape))
+        
         for i in range(len(out[0,0,:])):
             out[:,:,i] = np.multiply(out[:,:,i], filter_img)
-            
-
-            ####### REMOVE #######
-            self.temp_save_image_to_render_path(image=out[:,:,i])
         
         return  out
+    
+    def remove_unlit_pixels(self, images, threshold):
+        error_img = copy.copy(images)
+        error_img = np.sum(error_img**2, axis=2)
+        filter_img = np.ones_like(images[:,:,0])
+        filter_img[np.where(error_img < threshold)] = None
+
+        for i in range(len(images[0,0,:])):
+            images[:,:,i] = np.multiply(images[:,:,i], filter_img)
+        
+        return images
     
 
     def phase_detection(self, images):
@@ -105,15 +117,10 @@ class Algorithm:
         print("### PHASE DETECTION ###")
         dim = images.shape
 
-        print("Images shape: {}".format(images.shape))
-
         r = dim[0]
         c = dim[1]
         
-        print("r: {}, c = {}".format(r,c))
-        
         phase = np.empty((r,c))
-
         num_phase_steps = dim[2]
 
         ph = 2*np.pi*np.arange(0,num_phase_steps)/num_phase_steps #Plasser faseforskyningen i en vektor
@@ -123,8 +130,6 @@ class Algorithm:
         cosph = np.cos(ph) #Faseforskyvningen
         print(sinph)
         print(cosph)
-
-        print("Høyde gange bredde av bildet er: {}".format(r*c))
 
         image_vector = np.array(images).reshape(r*c, num_phase_steps) #Omform bildet til en vektor
         print(image_vector.shape)
@@ -138,13 +143,6 @@ class Algorithm:
 
         phase = phase.reshape(r,c) #Form bildet tilbake til originalt format
         phase = np.mod(phase,2*np.pi) #Map verdiene til 0 til 2pi
-
-        
-
-
-        ####### REMOVE #######
-        phase_temp = phase*(255/(np.pi*2))
-        self.temp_save_image_to_render_path(image=phase_temp)
         
         return phase
 
@@ -167,12 +165,45 @@ class Algorithm:
 
         abs_phase = temp/self.periods[0]
 
-        abs_phase_img = abs_phase*(255/(2*np.pi))
-
-        self.temp_save_image_to_render_path(abs_phase_img)
-
         return abs_phase
     
+
+
+    def triangulate_depth(self, projector_res_width, abs_phase, camera_matrix, projector_matrix):
+        
+        P_c = camera_matrix
+        P_p = projector_matrix
+
+        depth_img = np.empty_like(abs_phase)
+        count = 0
+
+        for u_c in range(len(depth_img[:,0])):
+
+            for v_c in range(len(depth_img[0,:])):
+
+                phase = abs_phase[u_c,v_c]
+                
+                if phase is not None or phase is not 'nan':
+
+                    v_p = projector_res_width*(phase/(np.pi*2))
+
+                    M = np.array([[P_c[0,0] - P_c[2,0]*u_c, P_c[0,1] - P_c[2,1]*u_c, P_c[0,2] - P_c[2,2]*u_c],
+                                [P_c[1,0] - P_c[2,0]*v_c, P_c[1,1] - P_c[2,1]*v_c, P_c[1,2] - P_c[2,2]*v_c],
+                                [P_p[1,0] - P_p[2,0]*v_p, P_p[1,1] - P_p[2,1]*v_p, P_p[1,2] - P_p[2,2]*v_p]])
+                    
+                    vec = np.array([[P_c[0,3] - P_c[2,3]*u_c],
+                                    [P_c[1,3] - P_c[2,3]*v_c],
+                                    [P_p[1,3] - P_p[2,3]*v_p]])
+
+                    world_coordinates = np.matmul(np.linalg.inv(M), vec)
+
+                    depth_img[u_c,v_c] = world_coordinates[2]
+                count += 1
+        
+        return depth_img
+
+
+            
 
     ####### REMOVE #######
     def temp_save_image_to_render_path(self, image):

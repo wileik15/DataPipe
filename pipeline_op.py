@@ -66,7 +66,6 @@ class DATAPIPE_OT_Import_dropzone_object(bpy.types.Operator):
             if drop_zone.select_get() is False:
                 drop_zone.select_set(True)
 
-            print("Objects in view layer:\n{}".format(bpy.context.view_layer.objects))
             bpy.context.view_layer.objects.active = drop_zone
             bpy.ops.object.select_all(action='DESELECT')
 
@@ -82,11 +81,9 @@ class DATAPIPE_OT_Preview_object(bpy.types.Operator):
     def execute(self, context):
         
         filepath = Path(bpy.path.abspath(context.scene.object_path)).resolve() #Filepath from input
-        print("Filepath of object:\n{}\nwith type: {}".format(filepath, type(filepath))) 
 
         scale = context.scene.object_scale
         ob_scale = [scale, scale, scale] #object scale from input
-        print("Scaling type is {}".format(type(ob_scale)))
 
         
         if filepath.suffix == '.obj': #Filetype has to be .obj
@@ -100,7 +97,7 @@ class DATAPIPE_OT_Preview_object(bpy.types.Operator):
 
             if 'temp_object' not in bpy.data.objects.keys() and 'temp_material' not in bpy.data.materials.keys():
                 bpy.ops.import_scene.obj(filepath=str(filepath))
-                print("\nImported .obj file contains {} objects:\n{}\n".format(len(list(bpy.context.selected_objects)), list(bpy.context.selected_objects)))
+                
                 if len(bpy.context.selected_objects) != 1: #Only one object can be imported at a time
                     for ob in bpy.context.selected_objects:
                         #Remove belonging data
@@ -124,7 +121,6 @@ class DATAPIPE_OT_Preview_object(bpy.types.Operator):
 
                     bpy.data.meshes[mesh_name].name = 'temp_mesh' #ob mesh data
 
-                    print("     Object {}\n     material:\n     {}".format(ob.name, ob.active_material))
             else:
                 if 'temp_object' in bpy.data.objects:
                     bpy.data.objects.remove(bpy.data.objects['temp_object'], do_unlink=True)
@@ -163,9 +159,6 @@ class DATAPIPE_OT_Append_object_data(bpy.types.Operator):
             bpy.data.materials.remove(bpy.data.materials['temp_material'], do_unlink=True)
             bpy.data.meshes.remove(bpy.data.meshes['temp_mesh'], do_unlink=True)
 
-        print("Object config after appending:\n{}\n".format(config_module.input_storage.config_dict['objects']))
-
-        print("__file__: {}".format(__file__))
         return {'FINISHED'}
 
 
@@ -202,7 +195,7 @@ class DATAPIPE_OT_Append_camera_pose(bpy.types.Operator):
             loc = list(cam.location)
             cam.rotation_mode = 'QUATERNION'
             rot = list(cam.rotation_quaternion)
-            print("Appended pose is:\n--> Loc: {}\n--> Rot: {}".format(loc, rot))
+            
             transform = {'rotation': rot, 'location': loc}
 
             camera_pose_list.append(transform)
@@ -225,8 +218,7 @@ class DATAPIPE_OT_Remove_camera_pose(bpy.types.Operator):
     def execute(self, context):
 
         camera_pose_list = config_module.input_storage.config_dict['camera']['wrld2cam_pose_list']
-        print("\nRemove camera pose RUNNING ...\nNumber of poses: {}\nType of pose list: {}\n".format(len(camera_pose_list), type(camera_pose_list)))
-
+        
         if len(camera_pose_list) > 0:
             del camera_pose_list[-1]
             print("Number of poses in list after removal: {}".format(len(camera_pose_list)))
@@ -302,8 +294,6 @@ class DATAPIPE_OT_Save_pipeline_info(bpy.types.Operator):
 
         config_module.input_storage.write_to_config_dict(context)
 
-        print("\nconfig dict after loading info:\n{}".format(config_module.input_storage.config_dict))
-
         config_module.input_storage.write_to_pickle_file(context.scene.save_pipeline_input_path)
 
         return {'FINISHED'}
@@ -318,7 +308,6 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
 
     def execute(self, context):
         
-        print('---- Now entering execute function')
         # Remove temp objects before running the pipeline, to avoid bugs.
         if 'temp_projector' in bpy.data.lights.keys(): #Remove projector object preview before running the pipeline
             bpy.data.objects.remove(bpy.data.objects['temp_projector'], do_unlink=True)
@@ -367,9 +356,6 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
             simulation = Simulation(sim_end=400)
             simulation.run_loop() #Loop physics simulation
             simulation.apply_simulated_transforms(object_manager=object_manager)
-
-            #Object transformation applied after simulation
-            print("++++++ Checkpoint {}".format(scene.scene_name))
             
             for render in range(1,scene.renders_for_scene+1):
                 
@@ -379,29 +365,23 @@ class DATAPIPE_OT_Runner(bpy.types.Operator):
 
                 scene.write_output_info_to_scene_dict(render_num=render, camera=camera, object_manager=object_manager)
 
-                #Render scene goes here
-                print("\nRENDERING {} CAMERA ANGLE {}/{}".format(scene.scene_name, render, scene.renders_for_scene))
                 renderer.render_results()
 
                 if camera.is_structured_light:
                     SL_algorithm = Algorithm(renderer=renderer, 
                                              pattern_names=camera.pattern_names, 
-                                             pattern_generator=camera.pattern_generator)
+                                             pattern_generator=camera.pattern_generator,camera=camera)
 
-                print("++++++ Checkpoint Render {}".format(render))
             
             scene.write_scene_dict_to_file()
 
             loop_finished = scene.last_scene
-            print("++++++ Checkpoint {}".format('Loop finished'))
 
             del scene
 
         BlendScene.reset_scene_number()
         config_module.input_storage.reset_config_dict()
 
-
-        print("After reseting scene class, scene number is: {}".format(BlendScene.scene_num))
         end_time = time.time()
 
         print("##################\n# Timing results #\n# Run time: {:2.2f} #\n##################\n".format(end_time-start_time))

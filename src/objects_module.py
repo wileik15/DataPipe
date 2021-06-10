@@ -33,8 +33,6 @@ class BlendObject:
         self.blend_mesh = blend_mesh
 
         self.dimensions = self.get_object_dimensions()
-        print(f"Object {self.name} imported\n- Filename: {self.filename}\n- Scale: {self.scale}\n- Index: {self.index}\n- Dimensions: {self.dimensions}\n")
-    
 
     
     def import_ob(self, filepath: str, index: int, scale: float):
@@ -123,7 +121,7 @@ class ObjectManager:
         self.delete_all_objects()
 
         index = 1
-        print("\n---------------------------\nImporting objects:\n")
+        print("\n### Importing objects ###\n")
         for object_input in self.objects_info_list:
 
             max_instances = object_input['max']
@@ -141,7 +139,6 @@ class ObjectManager:
         random.shuffle(self.objects_in_scene) #Randomizing the order of the objects
 
     def delete_all_objects(self):
-        print("Deleting {} objects".format(len(self.objects_in_scene)))
         if len(self.objects_in_scene) != 0:
             
             for obj in self.objects_in_scene:
@@ -195,7 +192,7 @@ class ObjectManager:
             wrld2cam_transform = np.asarray(camera.blend_cam_obj.matrix_world)
 
             wrld2obj_transform = np.asarray(obj.blend_ob.matrix_world)
-            print("Camera transform matrix apllied to {}:\n{}\n".format(obj.name, wrld2cam_transform))
+            
             cam2obj_pose = np.matmul(np.linalg.inv(wrld2cam_transform), wrld2obj_transform)
 
             dict = {'name': obj.name,
@@ -205,6 +202,5 @@ class ObjectManager:
 
             obj_output_list.append(dict)
 
-        print("\n\nObject list is:\n{}\n\n".format(obj_output_list))
 
         return obj_output_list

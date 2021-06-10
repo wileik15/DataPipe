@@ -27,17 +27,13 @@ class BlendScene:
         if self.scene_num == 1:
             self.set_run_instance_path(config=config)
         
-        print("Getting run instance path")
         self.run_instance_path = self.get_run_instance_path()
 
-        print("Getting drop zone dimensions")
         self.drop_zone_location, self.drop_zone_dimensions = self.get_drop_zone_info(scene_config=self.scene_config)
         
-        print("Creating scene output path")
         self.output_path = Path.joinpath(Path(config['output']['path']), self.scene_name)
         self.output_path.mkdir()
 
-        print("Setting boolean for scene")
         self.last_scene = False
 
         self.total_num_renders = self.scene_config['num_renders']
@@ -58,7 +54,7 @@ class BlendScene:
 
     @classmethod
     def set_run_instance_path(cls, config):
-        print("Setting run instance path..")
+        
         path = Path(config['output']['path'])
         path.mkdir()
         cls.run_instance_path = str(path)
@@ -143,13 +139,9 @@ class BlendScene:
         render_key = 'render.{:04d}'.format(render_num)
 
         wrld2cam_pose = np.asarray(camera.blend_cam_obj.matrix_world)
-        print("Camera matrix is\n{}".format(wrld2cam_pose))
-
-        print("Scene dict:\n{}\n".format(self.scene_dict))
         
         self.scene_dict[render_key] = {'wrld2cam_pose': wrld2cam_pose,
                                        'objects_in_scene':object_output_list}
-        print("Scene dict:\n{}\n".format(self.scene_dict))
     
     def write_scene_dict_to_file(self):
 
@@ -168,14 +160,10 @@ class BlendScene:
             
             with open(path_str, "wb") as pickle_file_out:
 
-                print("info dict adding to pickle file:\n{}".format(info_dict))
-
                 pickle.dump(info_dict, pickle_file_out)
         else:
             path_str = str(pickle_path)
             with open(path_str, "wb") as pickle_file_out:
                 info_dict = {self.scene_name: self.scene_dict}
-
-                print("info dict adding to pickle file:\n{}".format(info_dict))
                 
                 pickle.dump(info_dict, pickle_file_out)

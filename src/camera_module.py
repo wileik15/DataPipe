@@ -28,8 +28,14 @@ class BlendCamera:
             self.projector = Projector(self, config=config)
             self.pattern_names = self.projector.pattern_names_list
             self.pattern_generator = self.projector.pattern_generator
+            self.projector_matrix = self.projector.get_projector_matrix()
+            M = np.asarray(bpy.data.objects[self.projector.pattern_names_list[0]].matrix_basis)
+            self.projector_extrinsic = M[:3,:]
 
         self.K = self.get_calibration_matrix_K_from_blender(mode='complete')
+        self.camera_extrinsic = np.array([[1, 0, 0, 0],
+                                          [0, 1, 0, 0],
+                                          [0, 0, 1, 0]])
 
 
     def import_camera(self):
@@ -55,16 +61,12 @@ class BlendCamera:
         Returns random tansformation numpy matrix.
         """
         if curr_render == 1:
-            print("\n-- New render sequence --")
             self.pose_list_copy = copy.copy(self.pose_list)
 
         #Pick random index of pose list
         index = random.randint(a=0, b=len(self.pose_list_copy)-1)
 
-        print("Unique camera poses left: {}".format(len(self.pose_list_copy)))
         pose = self.pose_list_copy.pop(index)
-
-        print("Camera random pos: {}".format(pose))
 
         return pose
     
@@ -75,9 +77,7 @@ class BlendCamera:
         print("\n###### MOVING CAMERA ######")
 
         #Sample random pose from input list
-        print("\n------------\n")
         rand_pose = self.get_random_pose_from_list(curr_render=curr_render)
-        print("\n------------\n")
         
         self.blend_cam_obj.location = rand_pose['location']
         self.blend_cam_obj.rotation_quaternion = rand_pose['rotation']
@@ -85,10 +85,6 @@ class BlendCamera:
         bpy.context.view_layer.objects.active = self.blend_cam_obj
         bpy.ops.object.visual_transform_apply()
         
-        print("in move() ---> Blender object: {}".format(self.blend_cam_obj.name))
-
-        print("in move() ---> Rotation = {}\nTranslation = {}\n".format(self.blend_cam_obj.rotation_quaternion, self.blend_cam_obj.location))
-
 
     def get_calibration_matrix_K_from_blender(self, mode='complete'):
 

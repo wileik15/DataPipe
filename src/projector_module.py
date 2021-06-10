@@ -25,6 +25,7 @@ class Projector:
 
         #Generate patterns if they dont exist
         self.pattern_generator = PatternGenerator(resolution=self.pattern_shape)
+        self.patterns = self.pattern_generator.patterns_list #List of pattern dicts
         
         self.cam2proj_rot = self.projector_config['proj2cam_pose']['rotation']
         self.cam2proj_loc = self.projector_config['proj2cam_pose']['location']
@@ -50,7 +51,7 @@ class Projector:
         parent_collection = bpy.context.scene.collection
         
         view_layers = bpy.context.scene.view_layers
-        print(list(view_layers))
+        
         if not len(view_layers) == 1:
             raise Exception('Blender file can not contain more than one view layer when running the pipeline\nBlender file currently contains {} view layers'.format(len(view_layers)))
 
@@ -225,7 +226,7 @@ class Projector:
         emission_node.name = 'emission_{}'.format(light.name)
 
         links.new(input=emission_node.inputs[0], output=texture_img_node.outputs[0]) #Link texture image node to emission node
-        emission_node.inputs[1].default_value = 10
+        emission_node.inputs[1].default_value = 5
 
         #Light output node
         light_out_node.location = (1400, 0)
@@ -239,7 +240,18 @@ class Projector:
         height_px = self.pattern_shape[0]
         width_px = self.pattern_shape[1]
 
+        pixel_width = sensor_width/width_px
+
+        aspect_ratio = height_px/width_px
+
         u_0 = height_px/2
         v_0 = width_px/2
 
-        #alpha_u = 
+        alpha_u = focal_length*(width_px/sensor_width)
+        alpha_v = focal_length*(height_px*aspect_ratio/(pixel_width*height_px))
+
+
+        M = np.array([[alpha_u,       0, u_0],
+                      [      0, alpha_v, v_0],
+                      [      0,       0,   1]])
+        return M

@@ -35,9 +35,8 @@ class Simulation:
     def apply_simulated_transforms(self, object_manager: ObjectManager):
 
         for obj in object_manager.objects_in_scene:
-            print("{}\nmatrix: {}\n".format(obj.name, obj.blend_ob.matrix_world))
+            
             bpy.context.view_layer.objects.active = obj.blend_ob #Set obj to active
             bpy.ops.object.visual_transform_apply() #Apply transform
-            print("New matrix: {}\n\n".format(obj.blend_ob.matrix_world))
 
 

@@ -59,12 +59,7 @@ class Renderer:
         out_node_list.append(rgb_out_node) #Add rgb output node to out_node_list
 
         rgb_link = links.new(input=rgb_out_node.inputs[0], output=render_node.outputs[0]) #Link to render layer node
-        '''
-        to_socket = rgb_link.to_socket
-        from_socket = rgb_link.from_socket
-        print("To socket name: {}\nFrom socket name: {}".format(to_socket.name, from_socket.name))
-        to_socket.name = 'RGB_image'
-        '''
+        
         y_coord += delta_y
 
         #Depth image node
